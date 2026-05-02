@@ -282,6 +282,7 @@ const DEFAULT_NOTIF_PREFS = {
   friendCommentedMyWorkout: true,
   newAchievement: true,
   weeklyGoalReminder: true,
+  storyReply: true,
 };
 let notifPrefs              = null;
 let _notifDocs              = [];
@@ -1289,6 +1290,7 @@ let storyDocs = [], storyIndex = 0, storyTimer = null;
 let storyPaused = false, storyRemaining = 10000, storyStartTime = 0;
 let storyPointerStartX = 0, storyPointerStartY = 0, storyLongPressTimer = null;
 let storyViewersDragging = false;
+let storyDraggingDown    = false;
 
 async function loadStories() {
   const el = document.getElementById('stories-scroll');
@@ -1372,6 +1374,12 @@ function showStoryAt(idx) {
        </div>`
     : '');
 
+  const replyBar = document.getElementById('story-reply-bar');
+  if (replyBar) {
+    replyBar.classList.toggle('hidden', isOwn);
+    document.getElementById('story-reply-input').value = '';
+  }
+
   // Restart CSS animation
   const fill = document.getElementById('story-progress-fill');
   fill.style.animation = 'none';
@@ -1424,36 +1432,75 @@ function onStoryPointerDown(e) {
 }
 
 function onStoryPointerMove(e) {
-  if (storyViewersDragging) return;
-  const dy = storyPointerStartY - e.clientY;
-  const dx = Math.abs(e.clientX - storyPointerStartX);
-  // Upward drag past threshold → open viewers immediately, before finger release
-  if (dy >= 50 && dx < 60) {
+  const dy_up   = storyPointerStartY - e.clientY;
+  const dy_down = e.clientY - storyPointerStartY;
+  const dx      = Math.abs(e.clientX - storyPointerStartX);
+
+  // Upward swipe → open viewers (only when not already dragging down)
+  if (!storyDraggingDown && !storyViewersDragging && dy_up >= 50 && dx < 60) {
     storyViewersDragging = true;
     clearTimeout(storyLongPressTimer);
     storyLongPressTimer = null;
     pauseStory();
     openStoryViewers();
+    return;
+  }
+
+  // Downward drag → swipe-to-close (only when not dragging up)
+  if (!storyViewersDragging && dy_down > 0 && dx < 80) {
+    if (!storyDraggingDown && dy_down > 12) {
+      storyDraggingDown = true;
+      clearTimeout(storyLongPressTimer);
+      storyLongPressTimer = null;
+      pauseStory();
+    }
+    if (storyDraggingDown) {
+      const overlay  = document.getElementById('story-overlay');
+      const progress = Math.min(dy_down / window.innerHeight, 1);
+      overlay.style.transform = `translateY(${dy_down}px)`;
+      overlay.style.opacity   = `${Math.max(0.2, 1 - progress * 1.5)}`;
+    }
   }
 }
 
 function onStoryPointerUp(e) {
-  // Swipe was already handled in pointermove
+  // Downward drag release
+  if (storyDraggingDown) {
+    storyDraggingDown = false;
+    const dy_down   = e.clientY - storyPointerStartY;
+    const threshold = Math.min(80, window.innerHeight * 0.3);
+    const overlay   = document.getElementById('story-overlay');
+    if (dy_down >= threshold) {
+      overlay.style.transition = 'transform .25s ease, opacity .25s ease';
+      overlay.style.transform  = `translateY(${window.innerHeight}px)`;
+      overlay.style.opacity    = '0';
+      setTimeout(() => closeStory(), 260);
+    } else {
+      overlay.style.transition = 'transform .2s ease, opacity .2s ease';
+      overlay.style.transform  = '';
+      overlay.style.opacity    = '';
+      setTimeout(() => { overlay.style.transition = ''; }, 210);
+      resumeStory();
+    }
+    return;
+  }
+
+  // Upward swipe already handled in pointermove
   if (storyViewersDragging) { storyViewersDragging = false; return; }
 
   // Let interactive controls handle themselves
-  if (e.target.closest('.story-close, .story-views-row, .story-top')) {
+  if (e.target.closest('.story-close, .story-views-row, .story-top, .story-reply-bar')) {
     clearTimeout(storyLongPressTimer);
     storyLongPressTimer = null;
     return;
   }
 
   if (storyLongPressTimer) {
-    // Short tap → RTL navigate (right = older, left = newer/close)
+    // Short tap: RIGHT = restart current story, LEFT = advance to older story
     clearTimeout(storyLongPressTimer);
     storyLongPressTimer = null;
-    if (e.clientX < window.innerWidth / 2) showStoryAt(storyIndex - 1);
-    else showStoryAt(storyIndex + 1);
+    if (e.clientX < window.innerWidth / 2) showStoryAt(storyIndex + 1);
+    else showStoryAt(storyIndex);
   } else {
     // Long press release → resume
     if (storyPaused) resumeStory();
@@ -1461,10 +1508,17 @@ function onStoryPointerUp(e) {
 }
 
 function onStoryPointerCancel() {
+  if (storyDraggingDown) {
+    storyDraggingDown = false;
+    const overlay = document.getElementById('story-overlay');
+    overlay.style.transition = 'transform .2s ease, opacity .2s ease';
+    overlay.style.transform  = '';
+    overlay.style.opacity    = '';
+    setTimeout(() => { overlay.style.transition = ''; }, 210);
+  }
   storyViewersDragging = false;
   clearTimeout(storyLongPressTimer);
   storyLongPressTimer = null;
-  // Don't resume if viewers sheet is still visible
   const sheet = document.getElementById('story-viewers-sheet');
   if (sheet && !sheet.classList.contains('hidden')) return;
   if (storyPaused) resumeStory();
@@ -1558,11 +1612,54 @@ function closeStoryViewers() {
 
 function closeStory() {
   storyViewersDragging = false;
+  storyDraggingDown    = false;
   if (storyLongPressTimer) { clearTimeout(storyLongPressTimer); storyLongPressTimer = null; }
   if (storyTimer)          { clearTimeout(storyTimer); storyTimer = null; }
   storyPaused = false;
-  document.getElementById('story-overlay').classList.add('hidden');
+  const overlay = document.getElementById('story-overlay');
+  overlay.style.transition = '';
+  overlay.style.transform  = '';
+  overlay.style.opacity    = '';
+  overlay.classList.add('hidden');
   loadStories();
+}
+
+async function sendStoryReply() {
+  const input = document.getElementById('story-reply-input');
+  const msg   = input?.value.trim();
+  if (!msg || !currentUser) return;
+  const doc = storyDocs[storyIndex];
+  if (!doc) return;
+  const w = doc.data();
+  input.value = '';
+  input.blur();
+  resumeStory();
+  toast('תגובה נשלחה ✓', 'success');
+  try {
+    await db.collection('workouts').doc(doc.id).collection('replies').add({
+      fromUserId:     currentUser.uid,
+      fromUserName:   userProfile?.name || currentUser.displayName || 'משתמש',
+      fromUserAvatar: userProfile?.photoUrl || currentUser.photoURL || '',
+      message:        msg,
+      timestamp:      firebase.firestore.FieldValue.serverTimestamp(),
+      read:           false,
+    });
+    if (isNotifEnabled('storyReply')) {
+      await pushNotification(w.userId, {
+        type:  'storyReply',
+        title: `${userProfile?.name || 'מישהו'} הגיב/ה על הסטורי שלך`,
+        body:  msg,
+        icon:  '↩️',
+        data:  { workoutId: doc.id },
+      });
+    }
+  } catch (err) { console.error('sendStoryReply:', err); }
+}
+
+function onStoryReplyBlur() {
+  const sheet = document.getElementById('story-viewers-sheet');
+  if (sheet && !sheet.classList.contains('hidden')) return;
+  resumeStory();
 }
 
 async function loadCommentCounts(wids) {
@@ -2384,6 +2481,7 @@ function notifSettingsHtml(prefs) {
     ${notifRow('noWorkoutTwoDays',       'לא התאמנת 2 ימים',        'תזכורת להתאמן',                 prefs)}
     ${notifRow('friendLikedMyWorkout',   'לייק על האימון שלך',      'כשחבר נותן לייק לאימון שלך',    prefs)}
     ${notifRow('friendCommentedMyWorkout','תגובה על האימון שלך',    'כשחבר מגיב על אימון שלך',       prefs)}
+    ${notifRow('storyReply',             'תגובה על הסטורי שלך',    'כשמישהו מגיב על סטורי שלך',     prefs)}
     ${notifRow('newAchievement',         'הישג חדש',                 'כשמשיגים הישג',                 prefs)}
     ${notifRow('weeklyGoalReminder',     'תזכורת יעד שבועי',        'בסמ-שבוע אם מפגרים ביעד',       prefs)}
   </div>`;

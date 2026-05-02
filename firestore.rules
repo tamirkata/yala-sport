@@ -64,6 +64,13 @@ service cloud.firestore {
       allow update: if false;
     }
 
+    // ── Story Replies ──
+    match /workouts/{workoutId}/replies/{replyId} {
+      allow create: if isAuth() && request.resource.data.fromUserId == request.auth.uid;
+      allow read:   if isAuth() && get(/databases/$(database)/documents/workouts/$(workoutId)).data.userId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
     // ── Comments ──
     match /comments/{id} {
       allow read:   if isAuth();

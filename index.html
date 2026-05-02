@@ -655,6 +655,27 @@ textarea.form-input { resize: none; }
   color: rgba(255,255,255,.9); font-size: 13px; font-weight: 700;
 }
 .story-swipe-hint { font-size: 11px; color: rgba(255,255,255,.45); font-weight: 500; }
+/* Story reply bar */
+.story-reply-bar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 16px 28px; flex-shrink: 0; position: relative; z-index: 10;
+}
+.story-reply-bar.hidden { display: none !important; }
+.story-reply-input {
+  flex: 1; height: 44px;
+  background: rgba(255,255,255,.1);
+  border: 1px solid rgba(255,255,255,.35);
+  border-radius: 22px; color: #fff;
+  font-size: 15px; padding: 0 16px; outline: none; font-family: inherit;
+}
+.story-reply-input::placeholder { color: rgba(255,255,255,.5); }
+.story-reply-send {
+  width: 40px; height: 40px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,.15); border: none; border-radius: 50%;
+  color: #fff; cursor: pointer; transition: background .15s;
+}
+.story-reply-send:hover { background: rgba(255,255,255,.28); }
 /* Viewer list bottom sheet */
 .story-viewers-sheet {
   position: fixed; inset: 0; z-index: 600;
@@ -1323,6 +1344,16 @@ textarea.form-input { resize: none; }
   </div>
   <div class="story-img-wrap"><img id="story-img" src="" alt=""></div>
   <div class="story-caption-bar" id="story-caption-bar"></div>
+  <div class="story-reply-bar hidden" id="story-reply-bar" onpointerdown="event.stopPropagation()">
+    <input class="story-reply-input" id="story-reply-input" type="text"
+      placeholder="השב לסטורי..."
+      onfocus="pauseStory()"
+      onblur="onStoryReplyBlur()"
+      onkeydown="if(event.key==='Enter')sendStoryReply()">
+    <button class="story-reply-send" onclick="sendStoryReply()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+    </button>
+  </div>
 </div>
 
 <!-- STORY VIEWERS SHEET -->
