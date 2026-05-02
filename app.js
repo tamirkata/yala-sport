@@ -851,8 +851,7 @@ function openWorkoutModal(workoutData = null, workoutId = null) {
   selectedType = isEdit ? workoutData.type : '';
   document.getElementById('workout-date').value     = isEdit ? workoutData.date : localDateStr(new Date());
   const durMins = isEdit ? (workoutData.duration || 0) : 0;
-  document.getElementById('workout-hours').value    = isEdit ? Math.floor(durMins / 60) || '' : '';
-  document.getElementById('workout-minutes').value  = isEdit ? (durMins % 60 || '')    : '';
+  document.getElementById('workout-minutes').value  = isEdit ? (durMins || '') : '';
   document.getElementById('workout-notes').value    = isEdit ? (workoutData.notes || '') : '';
   document.getElementById('workout-mood').value     = isEdit ? (workoutData.mood  || '') : '';
   clearWorkoutPhoto();
@@ -932,15 +931,17 @@ function selectType(key) {
   if (btn) { btn.style.animation = 'none'; btn.offsetHeight; btn.style.animation = 'popIn .3s ease'; }
 }
 
-async function submitWorkout() {
+async function submitWorkout(skipPhotoCheck = false) {
   if (!selectedType) { toast('בחר סוג אימון', 'error'); return; }
   const dateVal = document.getElementById('workout-date').value;
   if (!dateVal)  { toast('בחר תאריך', 'error'); return; }
+  if (!skipPhotoCheck && !editingWorkoutId && !_pendingPhotoFile) {
+    document.getElementById('no-photo-confirm').classList.add('show');
+    return;
+  }
   const notes    = document.getElementById('workout-notes').value.trim();
   const mood     = document.getElementById('workout-mood').value.trim();
-  const hrs      = parseInt(document.getElementById('workout-hours').value)   || 0;
-  const mins     = parseInt(document.getElementById('workout-minutes').value) || 0;
-  const duration = hrs * 60 + mins || null;
+  const duration = parseInt(document.getElementById('workout-minutes').value) || null;
   const t        = WORKOUT_TYPES.find(x => x.key === selectedType);
   const btn      = document.getElementById('submit-workout-btn');
   btn.disabled = true; btn.textContent = 'שומר...';
@@ -1041,7 +1042,7 @@ async function loadHomeView() {
   const name  = currentUser.displayName || 'ספורטאי';
   const first = name.split(/\s+/)[0];
 
-  document.getElementById('header-week-label').textContent = `שבוע ${weekKey()}`;
+  // week label removed (Fix 9)
   document.getElementById('hero-denom').textContent        = String(userProfile.goal || 3);
 
   const greetEl = document.getElementById('hero-greeting');
@@ -1201,6 +1202,7 @@ function renderFeedPage() {
   el.insertAdjacentHTML('beforeend', slice.map((doc, i) => renderFeedItem(doc, feedOffset + i)).join(''));
   feedOffset += FEED_PAGE;
   loadCommentCounts(wids);
+  wids.forEach(id => subscribeComments(id));
   initRipples();
   // Sentinel for next page
   const oldSentinel = el.querySelector('.feed-sentinel');
@@ -1268,10 +1270,10 @@ function renderFeedItem(doc, idx = 0) {
     </div>
     <div class="comments-section hidden" id="comments-section-${wid}">
       <div id="comments-list-${wid}"></div>
-      <div class="comment-input-row">
-        <input class="form-input" id="comment-input-${wid}" data-owner="${escHtml(w.userId || '')}" placeholder="כתוב תגובה..." style="flex:1">
-        <button class="btn-sm" onclick="addComment('${wid}')">שלח</button>
-      </div>
+    </div>
+    <div class="comment-input-row">
+      <input class="form-input" id="comment-input-${wid}" data-owner="${escHtml(w.userId || '')}" placeholder="כתוב תגובה..." style="flex:1">
+      <button class="btn-sm" onclick="addComment('${wid}')">שלח</button>
     </div>
   </div>`;
 }
@@ -1624,6 +1626,11 @@ function subscribeComments(wid) {
         (a.data().createdAt?.toMillis?.() || 0) - (b.data().createdAt?.toMillis?.() || 0));
       const countEl = document.getElementById(`comment-count-${wid}`);
       if (countEl) countEl.textContent = docs.length ? `${docs.length} תגובות` : 'הוסף תגובה';
+      if (docs.length) {
+        const section = document.getElementById(`comments-section-${wid}`);
+        const btn     = document.getElementById(`comment-toggle-${wid}`);
+        if (section) { section.classList.remove('hidden'); btn?.classList.add('active'); }
+      }
       if (!docs.length) {
         listEl.innerHTML = '<div style="padding:4px 0;color:var(--text-3);font-size:13px">אין תגובות עדיין</div>';
         return;
@@ -1779,6 +1786,20 @@ function renderLeaderboard(sorted, names, photoUrls = {}) {
   });
 }
 
+// ══ COLLAPSIBLE NOTIF SECTION ════════════════════════════════════════════
+function toggleNotifSection(btn) {
+  const panel   = document.getElementById('notif-section-panel');
+  const chevron = btn.querySelector('.chevron-icon');
+  const isOpen  = panel.style.maxHeight && panel.style.maxHeight !== '0px';
+  if (isOpen) {
+    panel.style.maxHeight = '0';
+    chevron.style.transform = '';
+  } else {
+    panel.style.maxHeight = panel.scrollHeight + 'px';
+    chevron.style.transform = 'rotate(180deg)';
+  }
+}
+
 // ══ FRIENDS ══════════════════════════════════════════════════════════════
 async function loadFriendsView() {
   document.getElementById('friend-requests-list').innerHTML = skeletonList(2);
@@ -1816,6 +1837,77 @@ async function sendFriendRequest() {
     });
     input.value = '';
     toast(`בקשת חברות נשלחה ל-${targetData.name || email} 👋`, 'success');
+    loadFriendsView();
+  } catch (err) { errEl.textContent = 'שגיאה, נסה שוב'; console.error(err); }
+}
+
+let _friendSearchTimer = null;
+
+function onFriendSearchInput(val) {
+  clearTimeout(_friendSearchTimer);
+  const results = document.getElementById('friend-search-results');
+  if (!val.trim()) { results.innerHTML = ''; return; }
+  _friendSearchTimer = setTimeout(() => searchFriendsByQuery(val.trim()), 300);
+}
+
+async function searchFriendsByQuery(q) {
+  const results = document.getElementById('friend-search-results');
+  results.innerHTML = '<div style="color:var(--text-3);font-size:13px;padding:8px 0">מחפש...</div>';
+  try {
+    let snap;
+    if (q.includes('@')) {
+      snap = await db.collection('users').where('email', '==', q.toLowerCase()).get();
+    } else {
+      snap = await db.collection('users')
+        .where('name', '>=', q)
+        .where('name', '<', q + '')
+        .get();
+    }
+    const docs = snap.docs.filter(d => d.id !== currentUser.uid);
+    if (!docs.length) {
+      results.innerHTML = '<div style="color:var(--text-3);font-size:13px;padding:8px 0">לא נמצאו משתמשים</div>';
+      return;
+    }
+    results.innerHTML = docs.map(d => {
+      const u = d.data();
+      return `<div class="friend-req-item">
+        ${avatarHtml(u.name || '?', u.photoUrl || '', 'lb-avatar', '38')}
+        <div class="friend-info">
+          <div class="friend-name">${escHtml(u.name || 'משתמש')}</div>
+          ${u.username ? `<div class="friend-email">@${escHtml(u.username)}</div>` : ''}
+        </div>
+        <button class="btn-accept" onclick="sendFriendRequestToUid('${d.id}','${escHtml(u.name || '')}')">הוסף</button>
+      </div>`;
+    }).join('');
+  } catch (err) {
+    results.innerHTML = '<div style="color:var(--text-3);font-size:13px">שגיאה בחיפוש</div>';
+    console.error(err);
+  }
+}
+
+async function sendFriendRequestToUid(uid, name) {
+  const errEl = document.getElementById('friend-search-err');
+  errEl.textContent = '';
+  if ((userProfile.friendIds || []).includes(uid)) { errEl.textContent = 'כבר חברים!'; return; }
+  try {
+    const existing = await db.collection('friendRequests').where('fromUid', '==', currentUser.uid).get();
+    if (existing.docs.some(d => d.data().toUid === uid && d.data().status === 'pending')) {
+      errEl.textContent = 'בקשה כבר נשלחה'; return;
+    }
+    const targetDoc  = await db.collection('users').doc(uid).get();
+    const targetData = targetDoc.data() || {};
+    await db.collection('friendRequests').add({
+      fromUid: currentUser.uid, fromName: currentUser.displayName || '',
+      fromEmail: currentUser.email || '',
+      fromPhotoUrl: userProfile.photoUrl || '',
+      toUid: uid, toName: name, toEmail: targetData.email || '',
+      toPhotoUrl: targetData.photoUrl || '',
+      status: 'pending',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+    document.getElementById('friend-search-results').innerHTML = '';
+    document.getElementById('friend-email-input').value = '';
+    toast(`בקשת חברות נשלחה ל-${name || 'משתמש'} 👋`, 'success');
     loadFriendsView();
   } catch (err) { errEl.textContent = 'שגיאה, נסה שוב'; console.error(err); }
 }
@@ -2288,11 +2380,9 @@ function notifSettingsHtml(prefs) {
 function renderWorkoutGrid(docs = null) {
   const el = document.getElementById('workout-grid');
   if (!el) return;
-  const source = (docs || cachedUserDocs || []).slice().sort((a, b) => {
-    const ta = a.data().createdAt?.toMillis?.() || new Date(a.data().date + 'T12:00:00').getTime();
-    const tb = b.data().createdAt?.toMillis?.() || new Date(b.data().date + 'T12:00:00').getTime();
-    return tb - ta;
-  });
+  const source = (docs || cachedUserDocs || []).slice().sort((a, b) =>
+    (b.data().date || '').localeCompare(a.data().date || '')
+  );
   if (!source.length) {
     el.innerHTML = `<div style="grid-column:1/-1;padding:32px;text-align:center;color:var(--text-3);font-size:14px">עוד אין אימונים 💪</div>`;
     return;
@@ -2413,9 +2503,14 @@ function renderProfile() {
       <div class="settings-card"><div class="badges-grid" id="badges-grid"></div></div>
     </div>
     <div class="profile-section">
-      <div class="section-title">התראות</div>
-      <div class="settings-card">
-        ${notifSettingsHtml(notifPrefs || DEFAULT_NOTIF_PREFS)}
+      <button class="collapsible-header" onclick="toggleNotifSection(this)">
+        <span class="section-title" style="margin:0">התראות</span>
+        <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div id="notif-section-panel" style="max-height:0;overflow:hidden;transition:max-height .2s ease">
+        <div class="settings-card">
+          ${notifSettingsHtml(notifPrefs || DEFAULT_NOTIF_PREFS)}
+        </div>
       </div>
     </div>
     <button class="btn-danger btn-full" onclick="doSignOut()" style="margin-top:8px">התנתק</button>
@@ -2606,6 +2701,7 @@ function updateNotifBadge(count) {
 
 function openNotifInbox() {
   document.getElementById('notif-panel').classList.add('show');
+  markAllRead().then(() => updateNotifBadge(0));
   renderNotifPanel();
 }
 function closeNotifInbox() { document.getElementById('notif-panel').classList.remove('show'); }

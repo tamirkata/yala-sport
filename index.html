@@ -386,7 +386,7 @@ textarea.form-input { resize: none; }
 /* ══ ACTIVITY FEED ══════════════════════════════════════════════════════ */
 .feed-item {
   background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-l);
-  padding: 12px 14px; margin-bottom: 8px;
+  padding: 8px 12px; margin-bottom: 4px;
   animation: fadeUp .3s ease both;
   scroll-snap-align: start;
 }
@@ -423,7 +423,7 @@ textarea.form-input { resize: none; }
   font-size: 11px; font-weight: 700; color: var(--text-3);
 }
 /* Feed photo — fixed height so object-fit: cover centers correctly */
-#activity-feed .feed-photo { height: 140px; margin: 4px 0; }
+#activity-feed .feed-photo { height: 120px; margin: 4px 0; }
 #activity-feed .feed-photo img { width: 100%; height: 100%; object-fit: cover; object-position: center; }
 /* Branded 1:1 images — show at natural square ratio */
 #activity-feed .feed-photo.feed-photo--branded { height: auto; aspect-ratio: 1 / 1; max-height: 420px; }
@@ -573,6 +573,11 @@ textarea.form-input { resize: none; }
   background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-l);
   overflow: hidden;
 }
+.collapsible-header {
+  display: flex; align-items: center; justify-content: space-between;
+  width: 100%; background: none; padding: 4px 0; cursor: pointer;
+}
+.chevron-icon { transition: transform .2s ease; flex-shrink: 0; }
 .settings-row {
   display: flex; align-items: center; justify-content: space-between;
   padding: 16px; border-bottom: 1px solid var(--border);
@@ -1098,9 +1103,9 @@ textarea.form-input { resize: none; }
       <div class="friend-search-card">
         <div class="section-title" style="font-size:12px">הוסף חבר</div>
         <div class="friend-search-row">
-          <input id="friend-email-input" class="form-input" type="email" placeholder="מייל של החבר" dir="ltr" style="flex:1">
-          <button class="btn-primary" onclick="sendFriendRequest()" style="padding:13px 18px;white-space:nowrap">הוסף</button>
+          <input id="friend-email-input" class="form-input" type="text" placeholder="שם או מייל" style="flex:1" oninput="onFriendSearchInput(this.value)">
         </div>
+        <div id="friend-search-results"></div>
         <div class="err-msg" id="friend-search-err" style="margin-top:6px"></div>
       </div>
       <div class="section-title">בקשות ממתינות</div>
@@ -1189,7 +1194,6 @@ textarea.form-input { resize: none; }
     <div class="notif-sheet-handle"></div>
     <div class="notif-sheet-header">
       <div class="notif-sheet-title">🔔 התראות</div>
-      <button class="btn-text" onclick="markAllRead().then(renderNotifPanel)">סמן הכל כנקרא</button>
     </div>
     <div id="notif-list" class="notif-list"></div>
   </div>
@@ -1211,25 +1215,8 @@ textarea.form-input { resize: none; }
         <input class="form-input" type="date" id="workout-date">
       </div>
       <div class="form-group" style="flex:1;min-width:0">
-        <label class="form-label">שעות</label>
-        <input class="form-input" type="number" id="workout-hours" min="0" max="12" placeholder="0">
-      </div>
-      <div class="form-group" style="flex:1;min-width:0">
-        <label class="form-label">דקות</label>
-        <select class="form-input" id="workout-minutes">
-          <option value="">—</option>
-          <option value="0">00</option>
-          <option value="10">10</option>
-          <option value="15">15</option>
-          <option value="20">20</option>
-          <option value="25">25</option>
-          <option value="30">30</option>
-          <option value="35">35</option>
-          <option value="40">40</option>
-          <option value="45">45</option>
-          <option value="50">50</option>
-          <option value="55">55</option>
-        </select>
+        <label class="form-label">זמן אימון</label>
+        <input class="form-input" type="number" id="workout-minutes" min="0" max="300" placeholder="45">
       </div>
     </div>
     <div class="form-group">
@@ -1251,6 +1238,19 @@ textarea.form-input { resize: none; }
     </div>
     <button class="btn-primary btn-full" id="submit-workout-btn" onclick="submitWorkout()">שמור אימון ✓</button>
     <button class="btn-danger btn-full hidden" id="delete-workout-btn" onclick="confirmDeleteWorkout()" style="margin-top:10px">מחק אימון 🗑️</button>
+  </div>
+</div>
+
+<!-- NO PHOTO CONFIRMATION -->
+<div class="modal-overlay" id="no-photo-confirm" onclick="if(event.target.id==='no-photo-confirm')this.classList.remove('show')">
+  <div class="modal-sheet" style="padding:20px 20px 24px">
+    <div style="font-size:28px;text-align:center;margin-bottom:10px">📸</div>
+    <div style="font-weight:800;font-size:17px;text-align:center;margin-bottom:6px">שמור ללא תמונה?</div>
+    <div style="font-size:13px;color:var(--text-3);text-align:center;margin-bottom:18px">אימון עם תמונה מקבל יותר לייקים</div>
+    <div style="display:flex;gap:10px">
+      <button class="btn-ghost btn-full" onclick="document.getElementById('no-photo-confirm').classList.remove('show')">אוסיף תמונה</button>
+      <button class="btn-primary btn-full" onclick="document.getElementById('no-photo-confirm').classList.remove('show');submitWorkout(true)">המשך בלי תמונה</button>
+    </div>
   </div>
 </div>
 
