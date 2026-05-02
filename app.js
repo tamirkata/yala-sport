@@ -271,6 +271,7 @@ let cachedUserDocs       = [];
 let goalWasHit           = false;
 let currentTab           = 'home';
 let workoutsUnsubscribe  = null;
+let _userProfileUnsub   = null;
 let feedAllDocs          = [];
 let feedOffset           = 0;
 let feedObserver         = null;
@@ -719,6 +720,21 @@ function subscribeWorkouts(onFirst) {
     }, err => console.error('Workouts listener:', err));
 }
 
+function subscribeUserProfile() {
+  if (_userProfileUnsub) { _userProfileUnsub(); _userProfileUnsub = null; }
+  _userProfileUnsub = db.collection('users').doc(currentUser.uid)
+    .onSnapshot(snap => {
+      if (!snap.exists) return;
+      const prev = (userProfile.friendIds || []).join(',');
+      userProfile = { ...userProfile, ...snap.data() };
+      const next = (userProfile.friendIds || []).join(',');
+      if (prev !== next) {
+        homeLbCache = null; homeLbCacheTime = 0;
+        if (currentTab === 'home') loadHomeView();
+      }
+    }, err => console.error('User profile listener:', err));
+}
+
 // Recomputes stats and badge; called by the workouts snapshot listener
 function updateWeeklyStats() {
   renderProgressSection();
@@ -813,7 +829,7 @@ async function doRegister(e) {
     });
     batch.set(db.collection('usernames').doc(username), { uid: cred.user.uid, email });
     await batch.commit();
-    autoFriendNewUser(cred.user.uid);
+    await autoFriendNewUser(cred.user.uid);
   } catch (err) {
     errEl.textContent = authErr(err.code);
     btn.disabled = false; btn.textContent = 'הרשמה →';
@@ -3268,12 +3284,14 @@ auth.onAuthStateChanged(async user => {
     setTimeout(() => { moveNavIndicator('home'); initRipples(); }, 50);
 
     subscribeWorkouts(() => loadHomeView());
+    subscribeUserProfile();
     subscribeNotifications();
     requestNotifPermission();
 
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
   } else {
     if (workoutsUnsubscribe) { workoutsUnsubscribe(); workoutsUnsubscribe = null; }
+    if (_userProfileUnsub)   { _userProfileUnsub(); _userProfileUnsub = null; }
     if (_notifUnsub)         { _notifUnsub(); _notifUnsub = null; }
     if (feedObserver)        { feedObserver.disconnect(); feedObserver = null; }
     if (storyTimer)          { clearTimeout(storyTimer); storyTimer = null; }
