@@ -271,6 +271,9 @@ let feedAllDocs          = [];
 let feedOffset           = 0;
 let feedObserver         = null;
 let viewingUserId        = null;
+let homeLbCache          = null;
+let homeLbCacheTime      = 0;
+let homeLbExpanded       = false;
 const commentListeners   = {};
 
 // ── Notifications state ──
@@ -1020,9 +1023,120 @@ async function loadHomeView() {
   document.getElementById('activity-feed').innerHTML = skeletonFeed(3);
   loadActivityFeed();
   loadStories();
+  loadHomeLb();
   checkReminder(cachedUserDocs);
   checkAchievements(cachedUserDocs);
   checkWeeklyGoalReminder();
+}
+
+// ══ HOME LEADERBOARD ═════════════════════════════════════════════════════
+async function loadHomeLb() {
+  const el = document.getElementById('home-lb-card');
+  if (!el || !currentUser) return;
+
+  homeLbExpanded = false;
+  const friendIds = userProfile?.friendIds || [];
+
+  if (!friendIds.length) {
+    el.style.display = '';
+    renderHomeLb(null);
+    return;
+  }
+
+  const now5 = Date.now();
+  if (homeLbCache && now5 - homeLbCacheTime < 5 * 60 * 1000) {
+    el.style.display = '';
+    renderHomeLb(homeLbCache);
+    return;
+  }
+
+  const wStart  = weekKey();
+  const wEnd    = localDateStr(new Date(new Date(wStart + 'T00:00:00').getTime() + 6 * 86400000));
+  const myGroup = new Set([currentUser.uid, ...friendIds]);
+
+  try {
+    const snap = await db.collection('workouts')
+      .where('date', '>=', wStart).where('date', '<=', wEnd).get();
+
+    const counts = {}, names = {}, photos = {}, latest = {};
+    snap.docs.forEach(doc => {
+      const w = doc.data();
+      if (!w.userId || !myGroup.has(w.userId)) return;
+      counts[w.userId] = (counts[w.userId] || 0) + 1;
+      if (!names[w.userId])               names[w.userId]  = w.userName || 'משתמש';
+      if (!photos[w.userId] && w.userPhotoUrl) photos[w.userId] = w.userPhotoUrl;
+      if (!latest[w.userId] || w.date > latest[w.userId]) latest[w.userId] = w.date;
+    });
+
+    if (!counts[currentUser.uid]) {
+      counts[currentUser.uid] = 0;
+      names[currentUser.uid]  = userProfile.name || currentUser.displayName || 'אתה';
+      photos[currentUser.uid] = userProfile.photoUrl || '';
+    }
+
+    homeLbCache = Object.entries(counts)
+      .sort((a, b) => b[1] - a[1] || (latest[b[0]] || '').localeCompare(latest[a[0]] || ''))
+      .map(([uid, cnt], i) => ({ uid, cnt, name: names[uid], photo: photos[uid] || '', rank: i + 1 }));
+    homeLbCacheTime = Date.now();
+
+    el.style.display = '';
+    renderHomeLb(homeLbCache);
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+function renderHomeLb(rows) {
+  const el = document.getElementById('home-lb-card');
+  if (!el) return;
+
+  if (!rows) {
+    el.innerHTML = `
+      <div class="home-lb-head"><span class="home-lb-title">🏆 ליגת חברים</span></div>
+      <div class="home-lb-empty">
+        הוסף חברים כדי לראות איפה אתה ניצב!
+        <button class="home-lb-add-btn" onclick="switchTab('friends')">הוסף חברים</button>
+      </div>`;
+    return;
+  }
+
+  const medals  = ['🥇','🥈','🥉'];
+  const SHOW    = 5;
+
+  const rowHtml = (row, i) => {
+    const isMe     = row.uid === currentUser?.uid;
+    const rankHtml = i < 3
+      ? medals[i]
+      : `<span class="home-lb-rank-num">${i + 1}</span>`;
+    const nameHtml = isMe
+      ? `<span style="color:var(--primary);font-weight:800">${escHtml(row.name)}</span><span class="home-lb-me">אתה</span>`
+      : escHtml(row.name);
+    const onclick  = isMe ? `switchTab('profile')` : `openFriendProfile('${row.uid}')`;
+    return `<div class="home-lb-row${isMe ? ' me' : ''}" onclick="${onclick}">
+      <div class="home-lb-rank">${rankHtml}</div>
+      ${avatarHtml(row.name, row.photo, 'home-lb-avatar')}
+      <div class="home-lb-name">${nameHtml}</div>
+      <div class="home-lb-cnt-col"><div class="home-lb-cnt">${row.cnt}</div><div class="home-lb-unit">אימונים</div></div>
+    </div>`;
+  };
+
+  const visible   = homeLbExpanded ? rows : rows.slice(0, SHOW);
+  const hiddenCnt = rows.length - SHOW;
+
+  el.innerHTML = `
+    <div class="home-lb-head">
+      <span class="home-lb-title">🏆 ליגת חברים</span>
+      <span class="home-lb-week">השבוע</span>
+    </div>
+    ${visible.map((r, i) => rowHtml(r, i)).join('')}
+    ${!homeLbExpanded && hiddenCnt > 0
+      ? `<button class="home-lb-expand" onclick="expandHomeLb()">הצג עוד (${hiddenCnt})</button>`
+      : ''}`;
+}
+
+function expandHomeLb() {
+  homeLbExpanded = true;
+  renderHomeLb(homeLbCache);
 }
 
 // ══ PROGRESS CARD ════════════════════════════════════════════════════════
@@ -1045,6 +1159,8 @@ function renderProgressSection() {
   const sunDate   = new Date(now);
   sunDate.setDate(now.getDate() - weekdayN);
   sunDate.setHours(0, 0, 0, 0);
+  const sunStr    = localDateStr(sunDate);
+  const satStr    = localDateStr(new Date(sunDate.getTime() + 6 * 86400000));
   const DAY_LABELS = ['א','ב','ג','ד','ה','ו','ש'];
   const weekDays   = Array.from({ length: 7 }, (_, i) => {
     const d       = new Date(sunDate.getTime() + i * 86400000);
@@ -1057,7 +1173,11 @@ function renderProgressSection() {
       isToday:    dateStr === todayStr,
     };
   });
-  const weekCount = weekDays.filter(d => d.hasWorkout && !d.isFuture).length;
+  // Count individual workout documents (not unique days) for the weekly total
+  const weekCount = cachedUserDocs.filter(d => {
+    const dt = d.data().date;
+    return dt >= sunStr && dt <= satStr && dt <= todayStr;
+  }).length;
 
   // Monthly
   const mStart     = localDateStr(new Date(now.getFullYear(), now.getMonth(), 1));
@@ -1095,7 +1215,11 @@ function renderProgressSection() {
   const isWeekly     = chartPeriod === 'weekly';
   const displayCount = isWeekly ? weekCount : monthCount;
   const displayGoal  = isWeekly ? goal : monthGoal;
-  const periodLabel  = isWeekly ? 'אימונים השבוע' : 'אימונים החודש';
+  const fmtDM = str => { const [,m,d] = str.split('-'); return `${+d}.${+m}`; };
+  const MONTH_HE = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+  const periodLabel  = isWeekly
+    ? `אימונים השבוע &nbsp;·&nbsp; ${fmtDM(sunStr)}&nbsp;–&nbsp;${fmtDM(satStr)}`
+    : `אימונים בחודש ${MONTH_HE[now.getMonth()]}`;
   const maxMonthVal  = Math.max(...monthWeeks.map(w => w.count), goal, 1);
 
   card.innerHTML = `

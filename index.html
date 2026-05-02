@@ -510,6 +510,53 @@ textarea.form-input { resize: none; }
 .lb-count { font-size: 26px; font-weight: 900; color: var(--primary); flex-shrink: 0; text-align: center; }
 .lb-count-label { font-size: 10px; color: var(--text-3); text-align: center; }
 
+/* ══ HOME LEADERBOARD ════════════════════════════════════════════════════ */
+.home-lb-card {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-xl);
+  margin: 0 16px 16px; overflow: hidden;
+}
+.home-lb-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px 10px;
+}
+.home-lb-title { font-size: 14px; font-weight: 800; color: var(--text); }
+.home-lb-week  { font-size: 11px; color: var(--text-3); }
+.home-lb-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 16px; cursor: pointer;
+  transition: background .12s;
+}
+.home-lb-row:active { background: var(--bg-2); }
+.home-lb-row.me { background: rgba(255,59,92,.04); }
+.home-lb-row + .home-lb-row { border-top: 1px solid var(--border); }
+.home-lb-rank     { width: 26px; text-align: center; font-size: 18px; flex-shrink: 0; }
+.home-lb-rank-num { font-size: 13px; font-weight: 900; color: var(--text-3); }
+.home-lb-avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--primary); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 800; flex-shrink: 0; overflow: hidden;
+}
+.home-lb-name    { flex: 1; font-size: 14px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.home-lb-me      { font-size: 10px; color: var(--primary); font-weight: 700; margin-right: 4px; }
+.home-lb-cnt-col { text-align: center; flex-shrink: 0; }
+.home-lb-cnt     { font-size: 18px; font-weight: 900; color: var(--primary); line-height: 1.1; }
+.home-lb-unit    { font-size: 9px; color: var(--text-3); }
+.home-lb-expand  {
+  width: 100%; padding: 10px; text-align: center;
+  font-size: 13px; font-weight: 700; color: var(--primary);
+  border-top: 1px solid var(--border);
+}
+.home-lb-empty {
+  padding: 12px 16px 16px; text-align: center;
+  font-size: 13px; color: var(--text-3); line-height: 1.7;
+}
+.home-lb-add-btn {
+  display: block; margin: 10px auto 0;
+  background: var(--primary); color: #fff; border-radius: var(--r-m);
+  padding: 7px 18px; font-size: 13px; font-weight: 700;
+}
+
 /* ══ FRIENDS ════════════════════════════════════════════════════════════ */
 .friend-search-card {
   background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-l);
@@ -1065,6 +1112,7 @@ textarea.form-input { resize: none; }
       </div>
 
       <div class="progress-card" id="progress-card"></div>
+      <div class="home-lb-card" id="home-lb-card" style="display:none"></div>
     </div>
 
     <!-- LEADERBOARD -->
