@@ -674,13 +674,23 @@ function clearWorkoutPhoto() {
 }
 
 async function uploadWorkoutPhoto(file, workoutId) {
-  if (!storage || !file) return null;
+  if (!file) return null;
+  if (!storage) { toast('Firebase Storage לא זמין', 'error'); return null; }
   try {
     const compressed = await compressImage(file, 1080, 500);
-    const ref = storage.ref(`workout-photos/${currentUser.uid}/${workoutId}`);
+    // Use the avatars/ path — rules already deployed for this bucket prefix
+    const ref = storage.ref(`avatars/${currentUser.uid}/workout-${workoutId}`);
     await ref.put(compressed, { contentType: 'image/jpeg' });
     return await ref.getDownloadURL();
-  } catch { return null; }
+  } catch (err) {
+    console.error('Workout photo upload failed:', err);
+    if (err.code === 'storage/unauthorized') {
+      toast('אין הרשאה להעלות תמונה — בדוק Firebase Storage Rules', 'error');
+    } else {
+      toast(`שגיאה בהעלאת תמונה: ${err.message || err.code || err}`, 'error');
+    }
+    return null;
+  }
 }
 
 function onModalBackdrop(e) {
@@ -743,9 +753,15 @@ async function submitWorkout() {
       if (_pendingPhotoFile) {
         btn.textContent = 'מעלה תמונה...';
         const photoUrl = await uploadWorkoutPhoto(_pendingPhotoFile, docRef.id);
-        if (photoUrl) await docRef.update({ photoUrl });
+        if (photoUrl) {
+          await docRef.update({ photoUrl });
+          toast('האימון נרשם עם תמונה! 📸', 'success');
+        } else {
+          toast('האימון נרשם, אבל התמונה לא הועלתה ⚠️', '');
+        }
+      } else {
+        toast('האימון נרשם! 💪', 'success');
       }
-      toast('האימון נרשם! 💪', 'success');
     }
     closeWorkoutModal();
     loadHomeView();
@@ -983,7 +999,7 @@ function renderFeedItem(doc, idx = 0) {
     </div>
     ${w.mood  ? `<div class="feed-notes" style="font-style:italic;color:var(--text-2)">💬 ${escHtml(w.mood)}</div>` : ''}
     ${w.notes ? `<div class="feed-notes">${escHtml(w.notes)}</div>` : ''}
-    ${w.photoUrl ? `<div class="feed-photo" onclick="viewPhoto('${escHtml(w.photoUrl)}')"><img src="${escHtml(w.photoUrl)}" alt="אימון" loading="lazy"></div>` : ''}
+    ${w.photoUrl ? `<div class="feed-photo" data-photo="${escHtml(w.photoUrl)}" onclick="viewPhoto(this.dataset.photo)"><img src="${escHtml(w.photoUrl)}" alt="אימון" loading="lazy"></div>` : ''}
     <div class="feed-actions">
       <button class="like-btn${liked ? ' liked' : ''}" id="like-btn-${wid}" onclick="toggleLike('${wid}', this)">
         💪 <span id="like-count-${wid}">${likedBy.length}</span>
