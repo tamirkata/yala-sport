@@ -451,6 +451,39 @@ textarea.form-input { resize: none; }
   border-radius: 99px; border: 1px solid rgba(255,107,53,.2);
 }
 
+/* ══ FEED SCROLL CONTAINER ══════════════════════════════════════════════ */
+.activity-feed-wrap {
+  position: relative;
+  margin-bottom: 16px;
+}
+/* Fade-out gradient — visible only when content overflows */
+.activity-feed-wrap::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 56px;
+  background: linear-gradient(to bottom, transparent, #0A0A10);
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0;
+  transition: opacity .25s;
+  border-radius: 0 0 var(--r-l) var(--r-l);
+}
+.activity-feed-wrap.has-overflow::after { opacity: 1; }
+#activity-feed {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,.15) transparent;
+}
+#activity-feed::-webkit-scrollbar { width: 4px; }
+#activity-feed::-webkit-scrollbar-track { background: transparent; }
+#activity-feed::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,.15);
+  border-radius: 2px;
+}
+#activity-feed::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,.3); }
+
 /* ══ COMMENTS ═══════════════════════════════════════════════════════════ */
 .comments-section { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 12px; }
 .comment-item { display: flex; gap: 8px; margin-bottom: 10px; }
@@ -991,7 +1024,9 @@ textarea.form-input { resize: none; }
         <div class="stories-scroll" id="stories-scroll"></div>
       </div>
       <div class="section-title">פעילות חברים</div>
-      <div id="activity-feed"></div>
+      <div class="activity-feed-wrap">
+        <div id="activity-feed"></div>
+      </div>
 
       <div class="hero-card" id="hero-card">
         <div class="hero-top">

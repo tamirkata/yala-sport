@@ -1060,6 +1060,31 @@ function renderProgressChart() {
 }
 
 // ══ ACTIVITY FEED ════════════════════════════════════════════════════════
+function syncFeedHeight() {
+  const el   = document.getElementById('activity-feed');
+  const wrap = el?.parentElement;
+  if (!el || !wrap) return;
+  const firstItem = el.querySelector('.feed-item');
+  if (!firstItem) { el.style.maxHeight = ''; wrap.classList.remove('has-overflow'); return; }
+  // Two rAFs: first sets maxHeight, second reads the resulting layout
+  requestAnimationFrame(() => {
+    const itemH = firstItem.offsetHeight;
+    const gap   = parseInt(getComputedStyle(firstItem).marginBottom) || 10;
+    el.style.maxHeight = (itemH * 2 + gap) + 'px';
+    requestAnimationFrame(() => {
+      const overflow = el.scrollHeight > el.clientHeight + 1;
+      wrap.classList.toggle('has-overflow', overflow);
+      if (overflow && !el._scrollListenerAttached) {
+        el._scrollListenerAttached = true;
+        el.addEventListener('scroll', () => {
+          const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 4;
+          wrap.classList.toggle('has-overflow', !atBottom);
+        }, { passive: true });
+      }
+    });
+  });
+}
+
 async function loadActivityFeed(reset = true) {
   const el = document.getElementById('activity-feed');
   if (reset) {
@@ -1088,6 +1113,7 @@ async function loadActivityFeed(reset = true) {
     }
     el.innerHTML = '';
     renderFeedPage();
+    syncFeedHeight();
   } catch (err) {
     el.innerHTML = '<div class="empty-state">שגיאה בטעינת הפעילות</div>';
     console.error(err);
@@ -1117,7 +1143,7 @@ function renderFeedPage() {
         feedObserver.disconnect(); feedObserver = null;
         renderFeedPage();
       }
-    }, { rootMargin: '200px' });
+    }, { root: el, rootMargin: '120px' });
     feedObserver.observe(sentinel);
   }
 }
