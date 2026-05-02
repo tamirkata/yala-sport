@@ -795,7 +795,7 @@ async function doRegister(e) {
   try {
     const unameDoc = await db.collection('usernames').doc(username).get();
     if (unameDoc.exists) {
-      errEl.textContent = 'שם המשתמש תפוס — נסה שם אחר';
+      errEl.textContent = 'שם המשתמש הזה כבר תפוס. נסה אחר.';
       btn.disabled = false; btn.textContent = 'הרשמה →';
       return;
     }
@@ -814,6 +814,29 @@ async function doRegister(e) {
     errEl.textContent = authErr(err.code);
     btn.disabled = false; btn.textContent = 'הרשמה →';
   }
+}
+
+let _usernameCheckTimer = null;
+function onRegUsernameInput(val) {
+  clearTimeout(_usernameCheckTimer);
+  const badge = document.getElementById('username-avail');
+  if (!badge) return;
+  const v = val.trim().toLowerCase();
+  if (!v || !/^[a-z0-9_]{3,20}$/.test(v)) { badge.textContent = ''; return; }
+  badge.textContent = '⋯';
+  badge.style.color = 'var(--text-3)';
+  _usernameCheckTimer = setTimeout(async () => {
+    try {
+      const snap = await db.collection('usernames').doc(v).get();
+      if (snap.exists) {
+        badge.textContent = '✗';
+        badge.style.color = 'var(--danger)';
+      } else {
+        badge.textContent = '✓';
+        badge.style.color = 'var(--success)';
+      }
+    } catch { badge.textContent = ''; }
+  }, 400);
 }
 
 function authErr(code) {
@@ -2977,7 +3000,7 @@ let _editGender = 'זכר', _editFitnessGoal = 'fitness';
 function openEditProfile() {
   const p = userProfile;
   document.getElementById('edit-name').value        = p.name || currentUser.displayName || '';
-  document.getElementById('edit-username').value    = p.username || '';
+  document.getElementById('edit-username-static').textContent = p.username ? '@' + p.username : '—';
   document.getElementById('edit-age').value         = p.age || '';
   document.getElementById('edit-height').value      = p.height || '';
   document.getElementById('edit-weight').value      = p.weight || '';
@@ -3011,40 +3034,26 @@ function selectFitnessGoal(val) {
 }
 
 async function saveProfileEdits() {
-  const name       = document.getElementById('edit-name').value.trim();
-  const username   = document.getElementById('edit-username').value.trim().toLowerCase();
-  const age        = parseInt(document.getElementById('edit-age').value)         || null;
-  const height     = parseFloat(document.getElementById('edit-height').value)     || null;
-  const weight     = parseFloat(document.getElementById('edit-weight').value)     || null;
-  const goalWeight = parseFloat(document.getElementById('edit-goal-weight').value) || null;
+  const name        = document.getElementById('edit-name').value.trim();
+  const age         = parseInt(document.getElementById('edit-age').value)          || null;
+  const height      = parseFloat(document.getElementById('edit-height').value)     || null;
+  const weight      = parseFloat(document.getElementById('edit-weight').value)     || null;
+  const goalWeight  = parseFloat(document.getElementById('edit-goal-weight').value) || null;
   const activityLevel = document.getElementById('edit-activity').value;
-  const errEl      = document.getElementById('edit-profile-err');
-  const btn        = document.getElementById('edit-profile-save-btn');
-  if (!name)     { errEl.textContent = 'נא להזין שם'; return; }
-  if (!username) { errEl.textContent = 'נא להזין שם משתמש'; return; }
-  if (!/^[a-z0-9_]{3,20}$/.test(username)) { errEl.textContent = 'שם משתמש לא תקין'; return; }
+  const errEl       = document.getElementById('edit-profile-err');
+  const btn         = document.getElementById('edit-profile-save-btn');
+  if (!name) { errEl.textContent = 'נא להזין שם'; return; }
   errEl.textContent = '';
   btn.textContent = 'שומר...'; btn.disabled = true;
   try {
-    const oldUsername = userProfile.username || '';
-    if (username !== oldUsername) {
-      const snap = await db.collection('usernames').doc(username).get();
-      if (snap.exists) { errEl.textContent = 'שם המשתמש תפוס'; btn.disabled = false; btn.textContent = 'שמור'; return; }
-    }
     const updates = {
-      name, username, gender: _editGender, fitnessGoal: _editFitnessGoal, activityLevel,
+      name, gender: _editGender, fitnessGoal: _editFitnessGoal, activityLevel,
       ...(age        != null && { age }),
       ...(height     != null && { height }),
       ...(weight     != null && { weight }),
       ...(goalWeight != null && { goalWeight }),
     };
-    const batch = db.batch();
-    batch.update(db.collection('users').doc(currentUser.uid), updates);
-    if (username !== oldUsername) {
-      batch.set(db.collection('usernames').doc(username), { uid: currentUser.uid, email: currentUser.email });
-      if (oldUsername) batch.delete(db.collection('usernames').doc(oldUsername));
-    }
-    await batch.commit();
+    await db.collection('users').doc(currentUser.uid).update(updates);
     await currentUser.updateProfile({ displayName: name });
     Object.assign(userProfile, updates);
     closeEditProfile();
@@ -3220,13 +3229,22 @@ async function loadUserProfile() {
     const doc = await db.collection('users').doc(currentUser.uid).get();
     if (doc.exists) {
       userProfile = doc.data();
+      // Recover missing username: the signup batch may not have committed before this ran
+      if (!userProfile.username) {
+        try {
+          const uSnap = await db.collection('usernames')
+            .where('uid', '==', currentUser.uid).limit(1).get();
+          if (!uSnap.empty) {
+            const recovered = uSnap.docs[0].id;
+            userProfile.username = recovered;
+            db.collection('users').doc(currentUser.uid).update({ username: recovered }).catch(() => {});
+          }
+        } catch {}
+      }
     } else {
+      // User doc not yet written (race condition during signup) — minimal in-memory profile;
+      // doRegister's batch.commit() will write the real doc shortly after.
       userProfile = { goal: 3, friendIds: [], badges: [] };
-      await db.collection('users').doc(currentUser.uid).set({
-        name: currentUser.displayName || '', email: currentUser.email || '',
-        goal: 3, friendIds: [], badges: [],
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-      });
     }
   } catch { userProfile = { goal: 3, friendIds: [], badges: [] }; }
 }

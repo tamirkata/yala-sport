@@ -808,6 +808,8 @@ textarea.form-input { resize: none; }
 .edit-group { margin-bottom: 14px; }
 .edit-label { display: block; font-size: 12px; font-weight: 700; color: var(--text-2); margin-bottom: 6px; }
 .edit-hint { font-size: 11px; color: var(--text-3); margin-top: 4px; }
+.username-avail-badge { position:absolute; left:12px; top:50%; transform:translateY(-50%); font-size:15px; font-weight:700; pointer-events:none; }
+.edit-username-static { color:var(--text-2); cursor:default; user-select:none; opacity:.8; }
 .edit-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
 .gender-row { display: flex; gap: 8px; }
 .gender-btn {
@@ -1089,7 +1091,10 @@ textarea.form-input { resize: none; }
     </form>
     <form class="auth-form hidden" id="register-form" onsubmit="doRegister(event)">
       <input class="form-input" type="text" id="reg-name" placeholder="שם מלא" autocomplete="name" required>
-      <input class="form-input" type="text" id="reg-username" placeholder="שם משתמש (username)" dir="ltr" autocomplete="username" required minlength="3" maxlength="20">
+      <div style="position:relative">
+        <input class="form-input" type="text" id="reg-username" placeholder="שם משתמש (username)" dir="ltr" autocomplete="username" required minlength="3" maxlength="20" oninput="onRegUsernameInput(this.value)">
+        <span class="username-avail-badge" id="username-avail"></span>
+      </div>
       <input class="form-input" type="email" id="reg-email" placeholder="כתובת מייל" dir="ltr" autocomplete="email" required>
       <input class="form-input" type="password" id="reg-password" placeholder="סיסמה (לפחות 6 תווים)" dir="ltr" autocomplete="new-password" required minlength="6">
       <div class="err-msg" id="reg-err"></div>
@@ -1344,8 +1349,8 @@ textarea.form-input { resize: none; }
     </div>
     <div class="edit-group">
       <label class="edit-label">שם משתמש</label>
-      <input class="form-input" type="text" id="edit-username" placeholder="username" dir="ltr" autocomplete="username">
-      <div class="edit-hint">3-20 תווים: אותיות לועזיות, מספרים, קו תחתון</div>
+      <div class="form-input edit-username-static" id="edit-username-static" dir="ltr"></div>
+      <div class="edit-hint">שם משתמש לא ניתן לשינוי</div>
     </div>
     <div class="edit-group">
       <label class="edit-label">מגדר</label>
