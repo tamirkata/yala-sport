@@ -1128,6 +1128,7 @@ async function submitWorkout(skipPhotoCheck = false) {
         likedBy: [], photoUrl: null,
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       });
+      const newWorkoutId = docRef.id;
       if (_pendingPhotoFile) {
         btn.textContent = 'מעצב תמונה...';
         const photoUrl = await uploadWorkoutPhoto(_pendingPhotoFile, workoutMeta);
@@ -1141,17 +1142,16 @@ async function submitWorkout(skipPhotoCheck = false) {
         toast('האימון נרשם! 💪', 'success');
       }
       playSound('workout_saved'); triggerHaptic('success'); launchConfetti();
-    }
-    // Notify friends about new workout (not on edits)
-    if (!editingWorkoutId) {
+      // Notify friends about new workout
       const friendIds = userProfile.friendIds || [];
       if (friendIds.length) {
-        const t = WORKOUT_TYPES.find(x => x.key === selectedType);
+        const wt = WORKOUT_TYPES.find(x => x.key === selectedType);
         friendIds.forEach(fid => pushNotification(fid, {
           type: 'friendCompletedWorkout',
-          title: `${t?.emoji || '💪'} ${userProfile.name || 'חבר'} התאמן!`,
-          body: `${userProfile.name || 'חבר'} סיים ${t?.label || 'אימון'}`,
-          icon: t?.emoji || '💪',
+          title: `${wt?.emoji || '💪'} ${userProfile.name || 'חבר'} התאמן!`,
+          body: `${userProfile.name || 'חבר'} סיים ${wt?.label || 'אימון'}`,
+          icon: wt?.emoji || '💪',
+          data: { fromUserId: currentUser.uid, fromUserPhoto: userProfile.photoUrl || '', workoutId: newWorkoutId },
         }));
       }
     }
@@ -1755,8 +1755,8 @@ function onStoryPointerDown(e) {
   storyPointerStartX = e.clientX;
   storyPointerStartY = e.clientY;
   storyGestureDir    = null;
-  // Only skip long-press for buttons/inputs — still record position for swipe-down anywhere
-  if (e.target.closest('.story-close, .story-reply-bar, .story-views-row')) return;
+  // Skip gesture handling for interactive controls
+  if (e.target.closest('.story-close, .story-reply-bar, .story-views-row, #story-user-info')) return;
   storyLongPressTimer = setTimeout(() => {
     storyLongPressTimer = null;
     pauseStory();
@@ -1857,6 +1857,14 @@ function onStoryPointerUp(e) {
       }, 210);
       resumeStory();
     }
+    return;
+  }
+
+  // ── Tap on story owner info → close + navigate to their profile ──
+  if (e.target.closest('#story-user-info')) {
+    clearTimeout(storyLongPressTimer); storyLongPressTimer = null;
+    const _uid = storyDocs[storyIndex]?.data()?.userId;
+    if (_uid) { closeStory(); navigateToProfile(_uid); }
     return;
   }
 
@@ -1980,7 +1988,7 @@ async function _loadViewersData() {
       return 0;
     });
     list.innerHTML = friends.map(f => `
-      <div class="viewers-item u-link" onclick="closeStoryViewers();navigateToProfile('${escHtml(f.uid)}')">
+      <div class="viewers-item u-link" onclick="closeStory();navigateToProfile('${escHtml(f.uid)}')">
         ${avatarHtml(f.name, f.photo, 'lb-avatar', '44')}
         <div class="viewers-info">
           <div class="viewers-name">${escHtml(f.name)}</div>
@@ -2100,7 +2108,7 @@ async function toggleLike(wid, btn) {
           title: 'קיבלת לייק! 💪',
           body: `${userProfile.name || 'מישהו'} אהב את האימון שלך`,
           icon: '💪',
-          data: { fromUserId: currentUser.uid, fromUserPhoto: userProfile.photoUrl || '' },
+          data: { fromUserId: currentUser.uid, fromUserPhoto: userProfile.photoUrl || '', workoutId: wid },
         });
       }
     }
@@ -2182,7 +2190,7 @@ async function addComment(wid) {
         title: 'תגובה חדשה על האימון שלך 💬',
         body: `${userProfile.name || 'מישהו'}: ${text.slice(0, 60)}`,
         icon: '💬',
-        data: { fromUserId: currentUser.uid, fromUserPhoto: userProfile.photoUrl || '' },
+        data: { fromUserId: currentUser.uid, fromUserPhoto: userProfile.photoUrl || '', workoutId: wid },
       });
     }
   } catch (err) {
@@ -2695,6 +2703,7 @@ async function checkAchievements(allDocs) {
           title: `🏅 הישג חדש! ${a.label}`,
           body: a.desc,
           icon: a.emoji,
+          data: { achievementKey: a.key },
         });
       }
     }
@@ -3308,6 +3317,23 @@ function openNotifInbox() {
 function closeNotifInbox() { document.getElementById('notif-panel').classList.remove('show'); }
 function onNotifPanelBackdrop(e) { if (e.target.id === 'notif-panel') closeNotifInbox(); }
 
+function handleNotifTap(docId, type, dataJson) {
+  markNotifRead(docId);
+  closeNotifInbox();
+  let data = {};
+  try { data = JSON.parse(dataJson); } catch {}
+  if (type === 'friendLikedMyWorkout' || type === 'friendCommentedMyWorkout') {
+    switchTab('home');
+  } else if (type === 'friendCompletedWorkout') {
+    if (data.fromUserId) navigateToProfile(data.fromUserId);
+    else switchTab('home');
+  } else if (type === 'newAchievement') {
+    switchTab('achievements');
+  } else {
+    switchTab('home');
+  }
+}
+
 function renderNotifPanel() {
   const list = document.getElementById('notif-list');
   if (!_notifDocs.length) {
@@ -3317,14 +3343,12 @@ function renderNotifPanel() {
   list.innerHTML = _notifDocs.map(doc => {
     const n   = doc.data();
     const fid = n.data?.fromUserId;
-    const onClick = fid
-      ? `markNotifRead('${doc.id}');document.getElementById('notif-panel').classList.remove('show');navigateToProfile('${escHtml(fid)}')`
-      : `markNotifRead('${doc.id}')`;
-    const iconHtml = (fid && n.data?.fromUserPhoto)
-      ? avatarHtml('?', n.data.fromUserPhoto, 'comment-avatar')
-      : `<div class="notif-item-icon">${escHtml(n.icon || '💪')}</div>`;
-    return `<div class="notif-item${n.read ? '' : ' unread'}${fid ? ' u-link' : ''}" onclick="${onClick}">
-      ${iconHtml}
+    const dataJson = escHtml(JSON.stringify(n.data || {}));
+    const avatarEl = (fid && n.data?.fromUserPhoto)
+      ? `<div class="u-link" onclick="event.stopPropagation();closeNotifInbox();navigateToProfile('${escHtml(fid)}')" style="flex-shrink:0">${avatarHtml('?', n.data.fromUserPhoto, 'comment-avatar')}</div>`
+      : `<div class="notif-item-icon" style="flex-shrink:0">${escHtml(n.icon || '💪')}</div>`;
+    return `<div class="notif-item u-link${n.read ? '' : ' unread'}" onclick="handleNotifTap('${doc.id}','${escHtml(n.type || '')}','${dataJson}')">
+      ${avatarEl}
       <div class="notif-item-body">
         <div class="notif-item-title">${escHtml(n.title)}</div>
         <div class="notif-item-sub">${escHtml(n.body)}</div>
