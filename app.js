@@ -1,23 +1,141 @@
 // ══ CONSTANTS ═══════════════════════════════════════════════════════════
 const WORKOUT_TYPES = [
-  { key: 'run',        emoji: '🏃', label: 'ריצה'     },
   { key: 'gym',        emoji: '🏋️', label: 'חדר כושר' },
+  { key: 'run',        emoji: '🏃', label: 'ריצה'      },
   { key: 'swim',       emoji: '🏊', label: 'שחייה'     },
-  { key: 'bike',       emoji: '🚴', label: 'אופניים'   },
-  { key: 'yoga',       emoji: '🧘', label: 'יוגה'       },
-  { key: 'basketball', emoji: '🏀', label: 'כדורסל'     },
-  { key: 'football',   emoji: '⚽', label: 'כדורגל'     },
-  { key: 'other',      emoji: '💪', label: 'אחר'        },
+  { key: 'basketball', emoji: '🏀', label: 'כדורסל'    },
+  { key: 'tennis',     emoji: '🎾', label: 'טניס'      },
+  { key: 'padel',      emoji: '🏓', label: 'פאדל'      },
+  { key: 'treadmill',  emoji: '🔁', label: 'הליכון'    },
+  { key: 'other',      emoji: '💪', label: 'אחר'       },
 ];
-const FINE_PER_WORKOUT = 10;
-const FEED_PAGE        = 10;
+const FEED_PAGE = 10;
+
 const ACHIEVEMENTS = [
-  { key: 'first_workout', emoji: '🏅', label: 'אימון\nראשון'  },
-  { key: 'streak_7',      emoji: '🔥', label: '7 ימים\nרצוף'  },
-  { key: 'workouts_10',   emoji: '💪', label: '10\nאימונים'    },
-  { key: 'monthly_goal',  emoji: '🎯', label: 'יעד\nחודשי'     },
-  { key: 'workouts_30',   emoji: '🏆', label: '30\nאימונים'    },
+  // ── צעדים ראשונים ──
+  { key:'first_workout',    emoji:'🥇', label:'הצעד הראשון',      desc:'סיימת את האימון הראשון שלך!',             rarity:'common',    cat:'first'  },
+  { key:'first_gym',        emoji:'🏋️', label:'מרים ברזל',        desc:'נכנסת לחדר כושר לראשונה',                 rarity:'common',    cat:'first'  },
+  { key:'first_run',        emoji:'🏃', label:'הריצה הראשונה',    desc:'יצאת לרוץ לראשונה',                       rarity:'common',    cat:'first'  },
+  { key:'first_swim',       emoji:'🏊', label:'לשחות!',           desc:'שחית לראשונה',                            rarity:'common',    cat:'first'  },
+  { key:'first_basketball', emoji:'🏀', label:'כדורסל!',          desc:'שיחקת כדורסל לראשונה',                    rarity:'common',    cat:'first'  },
+  { key:'first_tennis',     emoji:'🎾', label:'אייס!',            desc:'שיחקת טניס לראשונה',                      rarity:'common',    cat:'first'  },
+  { key:'first_padel',      emoji:'🏓', label:'פאדל מאסטר',       desc:'שיחקת פאדל לראשונה',                      rarity:'common',    cat:'first'  },
+  { key:'first_treadmill',  emoji:'🔁', label:'על הליכון',         desc:'רצת על הליכון לראשונה',                  rarity:'common',    cat:'first'  },
+  { key:'first_photo',      emoji:'📷', label:'ספורטוגרף',        desc:'העלית תמונה ראשונה עם אימון',             rarity:'common',    cat:'first'  },
+  { key:'first_friend',     emoji:'👥', label:'חבר ראשון',        desc:'הוספת חבר ראשון ליאלה',                   rarity:'common',    cat:'first'  },
+  { key:'first_like_recv',  emoji:'💪', label:'קיבלת לייק!',      desc:'קיבלת לייק ראשון על אימון',               rarity:'common',    cat:'first'  },
+  { key:'first_comment',    emoji:'💬', label:'תגובה ראשונה',     desc:'כתבת תגובה ראשונה',                       rarity:'common',    cat:'first'  },
+  // ── רצפים ──
+  { key:'streak_3',         emoji:'🔥', label:'3 ימים רצוף',      desc:'התאמנת 3 ימים ברצף',                      rarity:'common',    cat:'streak' },
+  { key:'streak_7',         emoji:'🔥', label:'שבוע בוער',        desc:'התאמנת 7 ימים ברצף',                      rarity:'rare',      cat:'streak' },
+  { key:'streak_14',        emoji:'🔥', label:'שבועיים אש',       desc:'התאמנת 14 ימים ברצף',                     rarity:'rare',      cat:'streak' },
+  { key:'streak_30',        emoji:'💥', label:'חודש בוער',        desc:'התאמנת 30 ימים ברצף',                     rarity:'epic',      cat:'streak' },
+  { key:'streak_60',        emoji:'🌋', label:'60 ימים',          desc:'התאמנת 60 ימים ברצף',                     rarity:'epic',      cat:'streak' },
+  { key:'streak_100',       emoji:'⚡', label:'100 ימים!',        desc:'מאה ימי אימון ברצף — מדהים!',             rarity:'legendary', cat:'streak' },
+  // ── נפח ──
+  { key:'workouts_5',       emoji:'🌱', label:'מתחיל',            desc:'5 אימונים סה"כ',                          rarity:'common',    cat:'volume' },
+  { key:'workouts_10',      emoji:'💪', label:'מתרגל',            desc:'10 אימונים סה"כ',                         rarity:'common',    cat:'volume' },
+  { key:'workouts_25',      emoji:'🏅', label:'שגרה בריאה',       desc:'25 אימונים סה"כ',                         rarity:'common',    cat:'volume' },
+  { key:'workouts_50',      emoji:'🥈', label:'ספורטאי מנוסה',    desc:'50 אימונים סה"כ',                         rarity:'rare',      cat:'volume' },
+  { key:'workouts_100',     emoji:'💯', label:'100 אימונים',      desc:'מאה אימונים — מאה אחוז!',                 rarity:'rare',      cat:'volume' },
+  { key:'workouts_200',     emoji:'🥇', label:'ספורטאי רציני',    desc:'200 אימונים סה"כ',                        rarity:'epic',      cat:'volume' },
+  { key:'workouts_365',     emoji:'📅', label:'שנה שלמה',         desc:'365 אימונים — שנה של כושר!',              rarity:'epic',      cat:'volume' },
+  { key:'workouts_500',     emoji:'👑', label:'לגנד',             desc:'500 אימונים — אלוף!',                     rarity:'legendary', cat:'volume' },
+  { key:'workouts_1000',    emoji:'🏆', label:'אל הכושר',         desc:'1000 אימונים — יש כאלה!',                 rarity:'legendary', cat:'volume' },
+  // ── מגוון ──
+  { key:'variety_3',        emoji:'🎨', label:'מגוון',            desc:'ניסית 3 סוגי אימון שונים',                rarity:'common',    cat:'variety' },
+  { key:'variety_5',        emoji:'🌈', label:'ספורטאי מגוון',    desc:'ניסית 5 סוגי אימון שונים',                rarity:'rare',      cat:'variety' },
+  { key:'variety_all',      emoji:'🎭', label:'ספורטאי שלם',      desc:'ניסית את כל 8 סוגי האימון',               rarity:'epic',      cat:'variety' },
+  { key:'same_type_10',     emoji:'🎯', label:'מתמחה',            desc:'10 אימונים מאותו סוג',                    rarity:'common',    cat:'variety' },
+  { key:'same_type_50',     emoji:'🔬', label:'מומחה',            desc:'50 אימונים מאותו סוג',                    rarity:'rare',      cat:'variety' },
+  // ── יעדים שבועיים ──
+  { key:'weekly_goal_1',    emoji:'✅', label:'יעד ראשון',        desc:'השגת את היעד השבועי לראשונה',             rarity:'common',    cat:'goals'  },
+  { key:'weekly_goal_4',    emoji:'📆', label:'4 שבועות',         desc:'השגת את היעד השבועי 4 פעמים',             rarity:'common',    cat:'goals'  },
+  { key:'weekly_goal_10',   emoji:'🔟', label:'10 שבועות',        desc:'השגת את היעד השבועי 10 פעמים',            rarity:'rare',      cat:'goals'  },
+  { key:'weekly_goal_20',   emoji:'🌟', label:'20 שבועות',        desc:'השגת את היעד השבועי 20 פעמים',            rarity:'epic',      cat:'goals'  },
+  { key:'weekly_goal_52',   emoji:'🎊', label:'שנה של יעדים',     desc:'השגת את היעד השבועי 52 פעמים',            rarity:'legendary', cat:'goals'  },
+  { key:'overachieve',      emoji:'🚀', label:'מעבר ליעד',        desc:'השלמת פי 2 מהיעד השבועי שלך',            rarity:'rare',      cat:'goals'  },
+  { key:'perfect_week_4',   emoji:'🏆', label:'חודש מושלם',       desc:'4 שבועות ברצף עם יעד שבועי מלא',         rarity:'epic',      cat:'goals'  },
+  // ── חברתי ──
+  { key:'friends_5',        emoji:'🤝', label:'חמישה חברים',      desc:'הוספת 5 חברים ליאלה',                     rarity:'common',    cat:'social' },
+  { key:'friends_10',       emoji:'🎉', label:'פופולרי',          desc:'הוספת 10 חברים ליאלה',                    rarity:'rare',      cat:'social' },
+  { key:'likes_10',         emoji:'❤️', label:'אהוב',             desc:'קיבלת 10 לייקים על אימונים',              rarity:'rare',      cat:'social' },
+  { key:'likes_50',         emoji:'🌟', label:'כוכב',             desc:'קיבלת 50 לייקים',                         rarity:'epic',      cat:'social' },
+  { key:'likes_100',        emoji:'💫', label:'סופרסטאר',         desc:'קיבלת 100 לייקים',                        rarity:'legendary', cat:'social' },
+  { key:'comments_10',      emoji:'🗣️', label:'מגיב פעיל',        desc:'כתבת 10 תגובות',                          rarity:'common',    cat:'social' },
+  { key:'comments_50',      emoji:'💬', label:'דיון פעיל',        desc:'כתבת 50 תגובות',                          rarity:'rare',      cat:'social' },
+  { key:'liked_others_10',  emoji:'🙌', label:'מעריך',            desc:'נתת לייק ל-10 אימונים של חברים',          rarity:'common',    cat:'social' },
+  { key:'liked_others_50',  emoji:'💞', label:'תומך',             desc:'נתת לייק ל-50 אימונים',                   rarity:'rare',      cat:'social' },
+  { key:'group_workout',    emoji:'👫', label:'אימון יחד',        desc:'חבר שלך התאמן באותו יום',                 rarity:'common',    cat:'social' },
+  // ── זמן ──
+  { key:'early_bird',       emoji:'🌅', label:'עוף מוקדם',        desc:'התאמנת לפני 7 בבוקר',                     rarity:'rare',      cat:'time'   },
+  { key:'dawn_patrol',      emoji:'🌄', label:'פטרול שחר',        desc:'התאמנת לפני 6 בבוקר',                     rarity:'epic',      cat:'time'   },
+  { key:'morning_5',        emoji:'☀️', label:'5 בקרים',           desc:'התאמנת 5 פעמים בבוקר (לפני 9)',          rarity:'common',    cat:'time'   },
+  { key:'morning_20',       emoji:'🌞', label:'20 בקרים',          desc:'התאמנת 20 פעמים בבוקר',                  rarity:'rare',      cat:'time'   },
+  { key:'night_owl',        emoji:'🦉', label:'ינשוף הלילה',      desc:'התאמנת אחרי 22:00',                       rarity:'rare',      cat:'time'   },
+  { key:'night_5',          emoji:'🌙', label:'5 לילות',           desc:'התאמנת 5 פעמים בלילה (אחרי 21)',          rarity:'common',    cat:'time'   },
+  { key:'weekend_warrior',  emoji:'🗓️', label:'לוחם סופ"ש',       desc:'התאמנת בשבת ובראשון',                    rarity:'common',    cat:'time'   },
+  { key:'long_session',     emoji:'⏱️', label:'מרתון',            desc:'אימון של שעה ויותר',                      rarity:'rare',      cat:'time'   },
+  { key:'super_long',       emoji:'🕐', label:'אולטרה',           desc:'אימון של שעתיים ויותר',                   rarity:'epic',      cat:'time'   },
+  { key:'quick_fire',       emoji:'⚡', label:'מהיר כברק',        desc:'אימון קצר של עד 20 דקות',                rarity:'common',    cat:'time'   },
+  // ── חודשי ──
+  { key:'monthly_goal',     emoji:'📅', label:'יעד חודשי',        desc:'השגת את היעד החודשי',                     rarity:'rare',      cat:'monthly'},
+  { key:'monthly_double',   emoji:'💥', label:'חודש כפול',        desc:'הכפלת את היעד החודשי',                    rarity:'epic',      cat:'monthly'},
+  { key:'every_month_6',    emoji:'📊', label:'חצי שנה',          desc:'יעד חודשי 6 חודשים ברצף',                rarity:'epic',      cat:'monthly'},
+  { key:'every_month_12',   emoji:'🎊', label:'שנה של יעדים',     desc:'יעד חודשי 12 חודשים ברצף',               rarity:'legendary', cat:'monthly'},
+  // ── ספציפי לסוג ──
+  { key:'gym_20',           emoji:'🏋️', label:'חדר כושר קבוע',   desc:'20 אימוני חדר כושר',                      rarity:'common',    cat:'type'   },
+  { key:'gym_100',          emoji:'🦍', label:'בודיבילדר',        desc:'100 אימוני חדר כושר',                     rarity:'epic',      cat:'type'   },
+  { key:'run_20',           emoji:'🏃', label:'רץ',               desc:'20 אימוני ריצה',                          rarity:'common',    cat:'type'   },
+  { key:'run_50',           emoji:'🥇', label:'מרתוניסט',         desc:'50 אימוני ריצה',                          rarity:'rare',      cat:'type'   },
+  { key:'swim_10',          emoji:'🏊', label:'שחיין',            desc:'10 שיחיות',                               rarity:'common',    cat:'type'   },
+  { key:'swim_30',          emoji:'🐬', label:'דולפין',           desc:'30 שיחיות',                               rarity:'rare',      cat:'type'   },
+  { key:'bball_10',         emoji:'🏀', label:'שחקן כדורסל',      desc:'10 משחקי כדורסל',                         rarity:'common',    cat:'type'   },
+  { key:'tennis_10',        emoji:'🎾', label:'טניסאי',           desc:'10 אימוני טניס',                          rarity:'common',    cat:'type'   },
+  { key:'padel_10',         emoji:'🏓', label:'פאדל פרו',         desc:'10 אימוני פאדל',                          rarity:'common',    cat:'type'   },
+  { key:'treadmill_20',     emoji:'🔁', label:'הליכון מקצועי',    desc:'20 אימוני הליכון',                        rarity:'common',    cat:'type'   },
+  // ── מדיה ──
+  { key:'photos_5',         emoji:'📸', label:'אלבום כושר',       desc:'העלית 5 תמונות אימון',                    rarity:'common',    cat:'media'  },
+  { key:'photos_20',        emoji:'🎞️', label:'צלם כושר',         desc:'העלית 20 תמונות אימון',                   rarity:'rare',      cat:'media'  },
+  { key:'stories_5',        emoji:'🎬', label:'סטוריז קבוע',      desc:'פרסמת 5 סטוריז',                          rarity:'common',    cat:'media'  },
+  { key:'stories_20',       emoji:'🎥', label:'יוטיובר כושר',     desc:'פרסמת 20 סטוריז',                         rarity:'rare',      cat:'media'  },
+  { key:'mood_writer',      emoji:'✍️', label:'יומן כושר',        desc:'הוספת תיאור ל-10 אימונים',                rarity:'common',    cat:'media'  },
+  // ── עקביות ──
+  { key:'no_skip_month',    emoji:'📆', label:'ללא דילוג',         desc:'לא פספסת שבוע במשך חודש',                rarity:'epic',      cat:'consist'},
+  { key:'rain_or_shine',    emoji:'🌦️', label:'בכל מזג אוויר',    desc:'4 שבועות ברצף עם לפחות אימון אחד',       rarity:'rare',      cat:'consist'},
+  { key:'mon_to_fri',       emoji:'5️⃣', label:'5 ימי עבודה',      desc:'5 אימונים מיום א׳ עד ה׳',                rarity:'rare',      cat:'consist'},
+  // ── אתגרים ──
+  { key:'5_in_week',        emoji:'5️⃣', label:'שבוע אש',          desc:'5 אימונים בשבוע אחד',                     rarity:'rare',      cat:'chall'  },
+  { key:'7_in_week',        emoji:'7️⃣', label:'שבוע מדהים',       desc:'7 אימונים בשבוע אחד',                     rarity:'epic',      cat:'chall'  },
+  { key:'double_day',       emoji:'✌️', label:'יום כפול',          desc:'שני אימונים ביום אחד',                    rarity:'rare',      cat:'chall'  },
+  { key:'diverse_week',     emoji:'🎨', label:'שבוע צבעוני',      desc:'3 סוגי אימון שונים באותו שבוע',           rarity:'rare',      cat:'chall'  },
+  { key:'best_week',        emoji:'📈', label:'שבוע השיא',         desc:'שבוע עם יותר אימונים מתמיד',              rarity:'rare',      cat:'chall'  },
+  { key:'top_leaderboard',  emoji:'🥇', label:'ראשון בליגה',       desc:'הגעת למקום ראשון בלוח השיאים',            rarity:'epic',      cat:'chall'  },
+  // ── שוברי קוד ──
+  { key:'comeback',         emoji:'🔄', label:'חזרה לעניינים',     desc:'חזרת לאמן אחרי הפסקה של שבוע',           rarity:'common',    cat:'special'},
+  { key:'gym_rat',          emoji:'🐀', label:'חולדת הכושר',      desc:'50 אימוני חדר כושר',                      rarity:'rare',      cat:'special'},
+  { key:'friday_sport',     emoji:'🌅', label:'שישי ספורט',       desc:'התאמנת 5 פעמים ביום שישי',                rarity:'common',    cat:'special'},
+  { key:'jan_1',            emoji:'🥂', label:'שנה חדשה חדשה',    desc:'התאמנת ב-1 בינואר',                       rarity:'rare',      cat:'special'},
+  { key:'good_mood',        emoji:'😊', label:'אנרגיה טובה',      desc:'הוספת הרגשה חיובית ל-5 אימונים',          rarity:'common',    cat:'special'},
+  { key:'app_day_1',        emoji:'📱', label:'ברוך הבא!',         desc:'הצטרפת ליאלה ספורט',                      rarity:'common',    cat:'special'},
+  // ── משך זמן ──
+  { key:'total_10h',        emoji:'⏱️', label:'10 שעות',           desc:'10 שעות מצטברות של אימונים',              rarity:'common',    cat:'duration'},
+  { key:'total_50h',        emoji:'🕐', label:'50 שעות',           desc:'50 שעות מצטברות',                         rarity:'rare',      cat:'duration'},
+  { key:'total_100h',       emoji:'💯', label:'100 שעות',          desc:'100 שעות מצטברות',                        rarity:'epic',      cat:'duration'},
+  { key:'total_500h',       emoji:'🏆', label:'500 שעות',          desc:'500 שעות — מקצועי לגמרי!',               rarity:'legendary', cat:'duration'},
+  // ── אגדות ──
+  { key:'ach_25',           emoji:'⭐', label:'25 הישגים',         desc:'השגת 25 הישגים',                          rarity:'rare',      cat:'meta'   },
+  { key:'ach_50',           emoji:'🌟', label:'50 הישגים',         desc:'השגת 50 הישגים',                          rarity:'epic',      cat:'meta'   },
+  { key:'legend',           emoji:'⚡', label:'אגדה',              desc:'השגת 100 הישגים',                         rarity:'legendary', cat:'meta'   },
+  { key:'completionist',    emoji:'💎', label:'קומפלטיוניסט',      desc:'השגת 150 הישגים',                         rarity:'legendary', cat:'meta'   },
 ];
+
+const ACH_RARITY_COLOR = {
+  common:    { bg:'rgba(255,255,255,.07)', border:'rgba(255,255,255,.15)', text:'var(--text-3)', glow:'' },
+  rare:      { bg:'rgba(59,130,246,.1)',   border:'rgba(59,130,246,.35)',  text:'#60A5FA',       glow:'0 0 16px rgba(59,130,246,.3)' },
+  epic:      { bg:'rgba(139,92,246,.12)',  border:'rgba(139,92,246,.4)',   text:'#A78BFA',       glow:'0 0 16px rgba(139,92,246,.35)' },
+  legendary: { bg:'rgba(255,208,60,.12)',  border:'rgba(255,208,60,.45)',  text:'#FFD060',       glow:'0 0 20px rgba(255,208,60,.45)' },
+};
 
 // ══ FIREBASE ═════════════════════════════════════════════════════════════
 firebase.initializeApp(firebaseConfig);
@@ -214,11 +332,11 @@ function switchTab(tab) {
   const fabWrap = document.getElementById('fab-wrap');
   if (fabWrap) fabWrap.classList.toggle('hidden', tab !== 'home');
 
-  if (tab === 'home')        loadHomeView();
-  if (tab === 'leaderboard') loadLeaderboard();
-  if (tab === 'fines')       loadFines();
-  if (tab === 'settings')    renderSettings();
-  if (tab === 'friends')     loadFriendsView();
+  if (tab === 'home')         loadHomeView();
+  if (tab === 'leaderboard')  loadLeaderboard();
+  if (tab === 'achievements') loadAchievementsView();
+  if (tab === 'settings')     renderSettings();
+  if (tab === 'friends')      loadFriendsView();
 }
 
 // ══ UTILITIES ════════════════════════════════════════════════════════════
@@ -507,8 +625,17 @@ function openWorkoutModal(workoutData = null, workoutId = null) {
   const isEdit = !!workoutData;
   selectedType = isEdit ? workoutData.type : '';
   document.getElementById('workout-date').value     = isEdit ? workoutData.date : localDateStr(new Date());
-  document.getElementById('workout-duration').value = isEdit ? (workoutData.duration || '') : '';
+  const durMins = isEdit ? (workoutData.duration || 0) : 0;
+  document.getElementById('workout-hours').value    = isEdit ? Math.floor(durMins / 60) || '' : '';
+  document.getElementById('workout-minutes').value  = isEdit ? (durMins % 60 || '')    : '';
   document.getElementById('workout-notes').value    = isEdit ? (workoutData.notes || '') : '';
+  document.getElementById('workout-mood').value     = isEdit ? (workoutData.mood  || '') : '';
+  clearWorkoutPhoto();
+  if (isEdit && workoutData.photoUrl) {
+    document.getElementById('photo-preview').src = workoutData.photoUrl;
+    document.getElementById('photo-preview-wrap').style.display = 'block';
+    document.getElementById('photo-pick-btn').textContent = '📷 שנה תמונה';
+  }
   document.getElementById('modal-title').textContent = isEdit ? 'ערוך אימון ✏️' : 'רשום אימון 💪';
   document.getElementById('delete-workout-btn').classList.toggle('hidden', !isEdit);
   document.getElementById('submit-workout-btn').textContent = isEdit ? 'עדכן אימון ✓' : 'שמור אימון ✓';
@@ -520,6 +647,40 @@ function openWorkoutModal(workoutData = null, workoutId = null) {
 function closeWorkoutModal() {
   document.getElementById('workout-modal').classList.remove('show');
   editingWorkoutId = null;
+  clearWorkoutPhoto();
+}
+
+let _pendingPhotoFile = null;
+
+function previewWorkoutPhoto(file) {
+  if (!file) return;
+  _pendingPhotoFile = file;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('photo-preview').src = e.target.result;
+    document.getElementById('photo-preview-wrap').style.display = 'block';
+    document.getElementById('photo-pick-btn').textContent = '📷 שנה תמונה';
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearWorkoutPhoto() {
+  _pendingPhotoFile = null;
+  document.getElementById('photo-preview-wrap').style.display = 'none';
+  document.getElementById('photo-preview').src = '';
+  document.getElementById('photo-pick-btn').textContent = '📷 בחר תמונה';
+  const inp = document.getElementById('workout-photo-input');
+  if (inp) inp.value = '';
+}
+
+async function uploadWorkoutPhoto(file, workoutId) {
+  if (!storage || !file) return null;
+  try {
+    const compressed = await compressImage(file, 1080, 500);
+    const ref = storage.ref(`workout-photos/${currentUser.uid}/${workoutId}`);
+    await ref.put(compressed, { contentType: 'image/jpeg' });
+    return await ref.getDownloadURL();
+  } catch { return null; }
 }
 
 function onModalBackdrop(e) {
@@ -547,28 +708,43 @@ async function submitWorkout() {
   const dateVal = document.getElementById('workout-date').value;
   if (!dateVal)  { toast('בחר תאריך', 'error'); return; }
   const notes    = document.getElementById('workout-notes').value.trim();
-  const duration = parseInt(document.getElementById('workout-duration').value) || null;
+  const mood     = document.getElementById('workout-mood').value.trim();
+  const hrs      = parseInt(document.getElementById('workout-hours').value)   || 0;
+  const mins     = parseInt(document.getElementById('workout-minutes').value) || 0;
+  const duration = hrs * 60 + mins || null;
   const t        = WORKOUT_TYPES.find(x => x.key === selectedType);
   const btn      = document.getElementById('submit-workout-btn');
   btn.disabled = true; btn.textContent = 'שומר...';
   try {
     if (editingWorkoutId) {
-      await db.collection('workouts').doc(editingWorkoutId).update({
+      let photoUrl = undefined;
+      if (_pendingPhotoFile) {
+        btn.textContent = 'מעלה תמונה...';
+        photoUrl = await uploadWorkoutPhoto(_pendingPhotoFile, editingWorkoutId);
+      }
+      const upd = {
         type: selectedType, typeEmoji: t.emoji, typeName: t.label,
         date: dateVal, weekKey: dateToWeekKey(dateVal),
-        monthKey: dateVal.slice(0, 7), notes: notes || null, duration,
-      });
+        monthKey: dateVal.slice(0, 7), notes: notes || null, mood: mood || null, duration,
+      };
+      if (photoUrl !== undefined) upd.photoUrl = photoUrl;
+      await db.collection('workouts').doc(editingWorkoutId).update(upd);
       toast('האימון עודכן ✓', 'success');
     } else {
-      await db.collection('workouts').add({
+      const docRef = await db.collection('workouts').add({
         userId: currentUser.uid, userName: currentUser.displayName || '',
         userPhotoUrl: userProfile.photoUrl || '',
         type: selectedType, typeEmoji: t.emoji, typeName: t.label,
         date: dateVal, weekKey: dateToWeekKey(dateVal),
-        monthKey: dateVal.slice(0, 7), notes: notes || null, duration,
-        likedBy: [],
+        monthKey: dateVal.slice(0, 7), notes: notes || null, mood: mood || null, duration,
+        likedBy: [], photoUrl: null,
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       });
+      if (_pendingPhotoFile) {
+        btn.textContent = 'מעלה תמונה...';
+        const photoUrl = await uploadWorkoutPhoto(_pendingPhotoFile, docRef.id);
+        if (photoUrl) await docRef.update({ photoUrl });
+      }
       toast('האימון נרשם! 💪', 'success');
     }
     closeWorkoutModal();
@@ -625,6 +801,7 @@ async function loadHomeView() {
 
   document.getElementById('activity-feed').innerHTML = skeletonFeed(3);
   loadActivityFeed();
+  loadStories();
   checkReminder(cachedUserDocs);
   checkAchievements(cachedUserDocs);
 }
@@ -773,6 +950,14 @@ function renderFeedPage() {
   }
 }
 
+function fmtDuration(mins) {
+  if (!mins) return '';
+  const h = Math.floor(mins / 60), m = mins % 60;
+  if (h && m) return `${h}ש׳ ${m}ד׳`;
+  if (h)      return `${h} שעות`;
+  return `${m} דק׳`;
+}
+
 function renderFeedItem(doc, idx = 0) {
   const w        = doc.data();
   const wid      = doc.id;
@@ -794,9 +979,11 @@ function renderFeedItem(doc, idx = 0) {
     </div>
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">
       <span class="feed-pill">${w.typeEmoji || '💪'} ${escHtml(w.typeName || w.type)}</span>
-      ${w.duration ? `<span class="feed-duration">⏱ ${w.duration} דק׳</span>` : ''}
+      ${w.duration ? `<span class="feed-duration">⏱ ${fmtDuration(w.duration)}</span>` : ''}
     </div>
+    ${w.mood  ? `<div class="feed-notes" style="font-style:italic;color:var(--text-2)">💬 ${escHtml(w.mood)}</div>` : ''}
     ${w.notes ? `<div class="feed-notes">${escHtml(w.notes)}</div>` : ''}
+    ${w.photoUrl ? `<div class="feed-photo" onclick="viewPhoto('${escHtml(w.photoUrl)}')"><img src="${escHtml(w.photoUrl)}" alt="אימון" loading="lazy"></div>` : ''}
     <div class="feed-actions">
       <button class="like-btn${liked ? ' liked' : ''}" id="like-btn-${wid}" onclick="toggleLike('${wid}', this)">
         💪 <span id="like-count-${wid}">${likedBy.length}</span>
@@ -813,6 +1000,94 @@ function renderFeedItem(doc, idx = 0) {
       </div>
     </div>
   </div>`;
+}
+
+function viewPhoto(url) {
+  document.getElementById('photo-viewer-img').src = url;
+  document.getElementById('photo-viewer').classList.remove('hidden');
+}
+
+// ══ STORIES ══════════════════════════════════════════════════════════════
+const seenStories = new Set(JSON.parse(localStorage.getItem('seenStories') || '[]'));
+let storyDocs = [], storyIndex = 0, storyTimer = null;
+
+async function loadStories() {
+  const el = document.getElementById('stories-scroll');
+  if (!el) return;
+  try {
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const friendIds = userProfile.friendIds || [];
+    const allUids   = [currentUser.uid, ...friendIds].slice(0, 10);
+    const snaps = await Promise.all(
+      allUids.map(uid => db.collection('workouts').where('userId', '==', uid).get())
+    );
+    storyDocs = snaps.flatMap(s => s.docs).filter(doc => {
+      const d = doc.data();
+      if (!d.photoUrl) return false;
+      const ts = d.createdAt?.toMillis?.() || new Date(d.date + 'T12:00:00').getTime();
+      return ts >= cutoff.getTime();
+    }).sort((a, b) => {
+      const ta = a.data().createdAt?.toMillis?.() || 0;
+      const tb = b.data().createdAt?.toMillis?.() || 0;
+      return tb - ta;
+    });
+    const bar = document.getElementById('stories-bar');
+    if (!storyDocs.length) { if (bar) bar.style.display = 'none'; return; }
+    if (bar) bar.style.display = '';
+    el.innerHTML = storyDocs.map((doc, i) => {
+      const w = doc.data();
+      const seen = seenStories.has(doc.id);
+      return `<div class="story-item" onclick="openStory(${i})">
+        <div class="story-ring${seen ? ' seen' : ''}">
+          ${w.userPhotoUrl
+            ? `<img class="story-avatar-img" src="${escHtml(w.userPhotoUrl)}" alt="">`
+            : `<div class="story-avatar-img" style="background:var(--grad);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff">${escHtml(avatarOf(w.userName || '?'))}</div>`}
+        </div>
+        <div class="story-name">${escHtml((w.userName || '?').split(' ')[0])}</div>
+      </div>`;
+    }).join('');
+  } catch (err) { console.error('Stories:', err); }
+}
+
+function openStory(idx) {
+  storyIndex = idx;
+  showStoryAt(storyIndex);
+  document.getElementById('story-overlay').classList.remove('hidden');
+}
+
+function showStoryAt(idx) {
+  if (idx >= storyDocs.length) { closeStory(); return; }
+  const doc = storyDocs[idx];
+  const w   = doc.data();
+  seenStories.add(doc.id);
+  try { localStorage.setItem('seenStories', JSON.stringify([...seenStories])); } catch {}
+  document.getElementById('story-img').src = w.photoUrl;
+  const userInfo = document.getElementById('story-user-info');
+  userInfo.innerHTML = `
+    ${avatarHtml(w.userName || '?', w.userPhotoUrl || '', 'lb-avatar', '36')}
+    <div style="margin-right:8px">
+      <div class="story-user-name">${escHtml(w.userName || 'משתמש')}</div>
+      <div class="story-time">${w.createdAt ? timeAgo(w.createdAt) : fmtDate(w.date)}</div>
+    </div>`;
+  const cap = document.getElementById('story-caption-bar');
+  cap.innerHTML = (w.typeEmoji || w.notes || w.mood) ? `
+    <span class="story-pill">${w.typeEmoji || '💪'} ${escHtml(w.typeName || w.type)}</span>
+    ${w.mood  ? `<div class="story-caption-text" style="margin-top:6px">💬 ${escHtml(w.mood)}</div>`  : ''}
+    ${w.notes ? `<div class="story-caption-text" style="margin-top:4px">${escHtml(w.notes)}</div>` : ''}` : '';
+  // Progress bar animation
+  const fill = document.getElementById('story-progress-fill');
+  fill.style.transition = 'none'; fill.style.width = '0%';
+  fill.offsetHeight;
+  fill.style.transition = 'width 5s linear'; fill.style.width = '100%';
+  if (storyTimer) clearTimeout(storyTimer);
+  storyTimer = setTimeout(() => showStoryAt(storyIndex + 1), 5000);
+}
+
+function closeStory() {
+  document.getElementById('story-overlay').classList.add('hidden');
+  if (storyTimer) { clearTimeout(storyTimer); storyTimer = null; }
+  // Refresh story rings (seen state)
+  loadStories();
 }
 
 async function loadCommentCounts(wids) {
@@ -1149,107 +1424,6 @@ async function loadFriendsList() {
 }
 
 // ══ FINES ════════════════════════════════════════════════════════════════
-async function loadFines() {
-  const el = document.getElementById('fines-list');
-  el.innerHTML = skeletonList(3);
-  try {
-    const [mySnap, allUnpaidSnap] = await Promise.all([
-      db.collection('fines').where('userId', '==', currentUser.uid).get(),
-      db.collection('fines').where('paid', '==', false).get(),
-    ]);
-    const myDocs  = mySnap.docs.sort((a, b) => b.data().weekKey.localeCompare(a.data().weekKey));
-    let groupDebt = 0;
-    const debtors = new Set();
-    allUnpaidSnap.docs.forEach(doc => {
-      groupDebt += doc.data().amount || 0;
-      debtors.add(doc.data().userId);
-    });
-    document.getElementById('group-fine-amount').textContent = `₪${groupDebt}`;
-    document.getElementById('group-fine-sub').textContent =
-      debtors.size ? `${debtors.size} חברים חייבים לקופה` : 'אין חובות — כל הכבוד! 🎉';
-    renderFines(myDocs);
-    initRipples();
-  } catch (err) {
-    el.innerHTML = '<div class="empty-state">שגיאה בטעינת הקנסות</div>';
-  }
-}
-
-function renderFines(docs) {
-  const el = document.getElementById('fines-list');
-  if (!docs.length) {
-    el.innerHTML = `<div class="empty-state"><div class="empty-icon">🎉</div>אין קנסות! המשך כך!</div>`;
-    return;
-  }
-  el.innerHTML = docs.map(doc => {
-    const f      = doc.data();
-    const paidAt = f.paidAt?.toDate?.()?.toISOString()?.slice(0, 10);
-    return `<div class="fine-item">
-      <div class="fine-week">שבוע ${f.weekKey}</div>
-      <div class="fine-row">
-        <div>
-          <div class="fine-info">${f.missed} אימונים חסרים</div>
-          <div class="fine-detail">הגעת ל-${f.actual} מתוך ${f.goal} יעד</div>
-        </div>
-        <div class="fine-amount">₪${f.amount}</div>
-      </div>
-      <div class="fine-row" style="margin-top:12px">
-        ${f.paid
-          ? `<span class="badge-paid">✓ שולם${paidAt ? ' ' + fmtDate(paidAt) : ''}</span>`
-          : `<span class="badge-unpaid">לא שולם</span>
-             <button class="btn-success" onclick="markFinePaid('${doc.id}')">סמן כשולם</button>`
-        }
-      </div>
-    </div>`;
-  }).join('');
-}
-
-async function markFinePaid(fineId) {
-  try {
-    await db.collection('fines').doc(fineId).update({
-      paid: true, paidAt: firebase.firestore.FieldValue.serverTimestamp(),
-    });
-    toast('הקנס סומן כשולם ✓', 'success'); loadFines();
-  } catch (err) { toast('שגיאה', 'error'); }
-}
-
-async function calculateFines() {
-  const pWKey = weekKey(-1);
-  toast('מחשב קנסות שבוע שעבר...');
-  try {
-    const [workoutsSnap, usersSnap, existingSnap] = await Promise.all([
-      db.collection('workouts').where('weekKey', '==', pWKey).get(),
-      db.collection('users').get(),
-      db.collection('fines').where('weekKey', '==', pWKey).get(),
-    ]);
-    const existing = new Set(existingSnap.docs.map(d => d.id));
-    const counts = {}, unames = {};
-    workoutsSnap.docs.forEach(doc => {
-      const w = doc.data();
-      counts[w.userId] = (counts[w.userId] || 0) + 1;
-      if (!unames[w.userId]) unames[w.userId] = w.userName;
-    });
-    const batch = db.batch(); let processed = 0;
-    usersSnap.docs.forEach(udoc => {
-      const uid = udoc.id, udata = udoc.data();
-      const goal = udata.goal || 3, actual = counts[uid] || 0;
-      const fineId = `${uid}_${pWKey}`;
-      if (actual < goal && !existing.has(fineId)) {
-        const missed = goal - actual;
-        batch.set(db.collection('fines').doc(fineId), {
-          userId: uid, userName: udata.name || unames[uid] || 'משתמש',
-          weekKey: pWKey, goal, actual, missed,
-          amount: missed * FINE_PER_WORKOUT, paid: false,
-          calculatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-        });
-        processed++;
-      }
-    });
-    await batch.commit();
-    toast(processed ? `נוצרו ${processed} קנסות לשבוע ${pWKey} 💸` : `אין קנסות חדשים לשבוע ${pWKey}`, processed ? 'success' : '');
-    loadFines();
-  } catch (err) { toast('שגיאה בחישוב', 'error'); console.error(err); }
-}
-
 // ══ ACHIEVEMENTS ═════════════════════════════════════════════════════════
 function calcStreak(allDocs) {
   if (!allDocs.length) return 0;
@@ -1267,35 +1441,189 @@ function calcStreak(allDocs) {
 }
 
 async function checkAchievements(allDocs) {
-  const badges    = new Set(userProfile.badges || []);
-  const newBadges = [];
-  const total     = allDocs.length;
-  if (total >= 1  && !badges.has('first_workout')) newBadges.push('first_workout');
-  if (total >= 10 && !badges.has('workouts_10'))   newBadges.push('workouts_10');
-  if (total >= 30 && !badges.has('workouts_30'))   newBadges.push('workouts_30');
-  if (!badges.has('monthly_goal')) {
-    const mc = allDocs.filter(d => d.data().monthKey === monthKey()).length;
-    if (mc >= (userProfile.goal || 3)) newBadges.push('monthly_goal');
-  }
-  if (!badges.has('streak_7') && calcStreak(allDocs) >= 7) newBadges.push('streak_7');
-  if (newBadges.length) {
-    const updated = [...Array.from(badges), ...newBadges];
-    userProfile.badges = updated;
-    try { await db.collection('users').doc(currentUser.uid).update({ badges: updated }); } catch {}
-    newBadges.forEach(key => {
-      const a = ACHIEVEMENTS.find(x => x.key === key);
-      if (a) setTimeout(() => toast(`הישג חדש! ${a.emoji} ${a.label.replace('\n', ' ')}`, 'success'), 800);
-    });
-  }
+  const badges = new Set(userProfile.badges || []);
+  const toAdd  = [];
+  const total  = allDocs.length;
+  const streak = calcStreak(allDocs);
+  const types  = new Set(allDocs.map(d => d.data().type));
+  const typeCounts = {};
+  allDocs.forEach(d => { const t = d.data().type; typeCounts[t] = (typeCounts[t] || 0) + 1; });
+  const totalMins  = allDocs.reduce((s, d) => s + (d.data().duration || 0), 0);
+
+  const check = (key, cond) => { if (cond && !badges.has(key)) toAdd.push(key); };
+
+  // First steps
+  check('first_workout',    total >= 1);
+  check('first_gym',        typeCounts['gym']        >= 1);
+  check('first_run',        typeCounts['run']        >= 1);
+  check('first_swim',       typeCounts['swim']       >= 1);
+  check('first_basketball', typeCounts['basketball'] >= 1);
+  check('first_tennis',     typeCounts['tennis']     >= 1);
+  check('first_padel',      typeCounts['padel']      >= 1);
+  check('first_treadmill',  typeCounts['treadmill']  >= 1);
+  check('app_day_1',        total >= 1);
+  // Streaks
+  check('streak_3',   streak >= 3);
+  check('streak_7',   streak >= 7);
+  check('streak_14',  streak >= 14);
+  check('streak_30',  streak >= 30);
+  check('streak_60',  streak >= 60);
+  check('streak_100', streak >= 100);
+  // Volume
+  check('workouts_5',    total >= 5);
+  check('workouts_10',   total >= 10);
+  check('workouts_25',   total >= 25);
+  check('workouts_50',   total >= 50);
+  check('workouts_100',  total >= 100);
+  check('workouts_200',  total >= 200);
+  check('workouts_365',  total >= 365);
+  check('workouts_500',  total >= 500);
+  check('workouts_1000', total >= 1000);
+  // Variety
+  check('variety_3',    types.size >= 3);
+  check('variety_5',    types.size >= 5);
+  check('variety_all',  types.size >= 8);
+  check('same_type_10', Object.values(typeCounts).some(c => c >= 10));
+  check('same_type_50', Object.values(typeCounts).some(c => c >= 50));
+  // Type-specific
+  check('gym_20',      (typeCounts['gym']        || 0) >= 20);
+  check('gym_100',     (typeCounts['gym']        || 0) >= 100);
+  check('run_20',      (typeCounts['run']        || 0) >= 20);
+  check('run_50',      (typeCounts['run']        || 0) >= 50);
+  check('swim_10',     (typeCounts['swim']       || 0) >= 10);
+  check('swim_30',     (typeCounts['swim']       || 0) >= 30);
+  check('bball_10',    (typeCounts['basketball'] || 0) >= 10);
+  check('tennis_10',   (typeCounts['tennis']     || 0) >= 10);
+  check('padel_10',    (typeCounts['padel']      || 0) >= 10);
+  check('treadmill_20',(typeCounts['treadmill']  || 0) >= 20);
+  check('gym_rat',     (typeCounts['gym']        || 0) >= 50);
+  // Monthly goal
+  const mc = allDocs.filter(d => d.data().monthKey === monthKey()).length;
+  check('monthly_goal',   mc >= (userProfile.goal || 3));
+  check('monthly_double', mc >= (userProfile.goal || 3) * 2);
+  // Weekly challenges
+  const wStart = weekKey();
+  const wEnd   = localDateStr(new Date(new Date(wStart + 'T00:00:00').getTime() + 6 * 86400000));
+  const thisWeek = allDocs.filter(d => { const dt = d.data().date; return dt >= wStart && dt <= wEnd; });
+  check('5_in_week', thisWeek.length >= 5);
+  check('7_in_week', thisWeek.length >= 7);
+  check('overachieve', thisWeek.length >= (userProfile.goal || 3) * 2);
+  // Duration
+  check('long_session', allDocs.some(d => (d.data().duration || 0) >= 60));
+  check('super_long',   allDocs.some(d => (d.data().duration || 0) >= 120));
+  check('quick_fire',   allDocs.some(d => (d.data().duration || 0) > 0 && (d.data().duration || 0) <= 20));
+  check('total_10h',  totalMins >= 600);
+  check('total_50h',  totalMins >= 3000);
+  check('total_100h', totalMins >= 6000);
+  check('total_500h', totalMins >= 30000);
+  // Photo / media
+  const withPhotos = allDocs.filter(d => d.data().photoUrl).length;
+  check('first_photo', withPhotos >= 1);
+  check('photos_5',    withPhotos >= 5);
+  check('photos_20',   withPhotos >= 20);
+  // Mood / notes
+  const withMood  = allDocs.filter(d => d.data().mood  || d.data().notes).length;
+  check('mood_writer', withMood >= 10);
+  check('good_mood',   allDocs.filter(d => d.data().mood).length >= 5);
+  // Social
+  check('first_friend', (userProfile.friendIds || []).length >= 1);
+  check('friends_5',    (userProfile.friendIds || []).length >= 5);
+  check('friends_10',   (userProfile.friendIds || []).length >= 10);
+  // Meta
+  const earnedCount = badges.size + toAdd.length;
+  check('ach_25',  earnedCount >= 25);
+  check('ach_50',  earnedCount >= 50);
+  check('legend',  earnedCount >= 100);
+
+  if (!toAdd.length) return;
+  const updated = [...Array.from(badges), ...toAdd];
+  userProfile.badges = updated;
+  try { await db.collection('users').doc(currentUser.uid).update({ badges: updated }); } catch {}
+  toAdd.forEach((key, i) => {
+    const a = ACHIEVEMENTS.find(x => x.key === key);
+    if (a) setTimeout(() => toast(`🏅 הישג חדש! ${a.emoji} ${a.label}`, 'success'), 900 + i * 700);
+  });
+}
+
+let achFilter = 'all';
+
+function loadAchievementsView() {
+  const earned = new Set(userProfile.badges || []);
+  const pts    = [...earned].reduce((s, k) => {
+    const a = ACHIEVEMENTS.find(x => x.key === k);
+    return s + ({ common: 10, rare: 25, epic: 60, legendary: 150 }[a?.rarity] || 0);
+  }, 0);
+  const pct    = Math.round((earned.size / ACHIEVEMENTS.length) * 100);
+  const ranks  = [
+    { min: 0,    emoji: '🌱', name: 'מתחיל'    },
+    { min: 5,    emoji: '⚡', name: 'מתרגל'    },
+    { min: 15,   emoji: '🔥', name: 'רציני'     },
+    { min: 30,   emoji: '💪', name: 'ספורטאי'   },
+    { min: 50,   emoji: '🏅', name: 'מקצוען'   },
+    { min: 80,   emoji: '🏆', name: 'אלוף'      },
+    { min: 120,  emoji: '👑', name: 'לגנד'      },
+    { min: 160,  emoji: '💎', name: 'אגדה'      },
+  ];
+  const rank = [...ranks].reverse().find(r => earned.size >= r.min) || ranks[0];
+  document.getElementById('ach-rank-emoji').textContent   = rank.emoji;
+  document.getElementById('ach-rank-name').textContent    = rank.name;
+  document.getElementById('ach-earned-count').textContent = earned.size;
+  document.getElementById('ach-points').textContent       = pts;
+  document.getElementById('ach-pct').textContent          = `${pct}%`;
+  filterAchievements(achFilter);
+}
+
+function filterAchievements(cat) {
+  achFilter = cat;
+  document.querySelectorAll('.ach-filter-btn').forEach(b => b.classList.remove('active'));
+  const activeBtn = [...document.querySelectorAll('.ach-filter-btn')].find(b => b.textContent.includes(cat === 'all' ? 'הכל' : cat === 'earned' ? 'הושג' : ''));
+  if (activeBtn) activeBtn.classList.add('active');
+  // Fallback: mark by onclick attribute match
+  document.querySelectorAll('.ach-filter-btn').forEach(b => {
+    if (b.getAttribute('onclick')?.includes(`'${cat}'`)) b.classList.add('active');
+  });
+
+  const earned = new Set(userProfile.badges || []);
+  let list = ACHIEVEMENTS;
+  if (cat === 'earned') list = list.filter(a => earned.has(a.key));
+  else if (cat !== 'all') list = list.filter(a => a.cat === cat);
+  // Sort: earned first, then by rarity
+  const rarityOrder = { legendary: 0, epic: 1, rare: 2, common: 3 };
+  list = [...list].sort((a, b) => {
+    const ae = earned.has(a.key), be = earned.has(b.key);
+    if (ae !== be) return ae ? -1 : 1;
+    return (rarityOrder[a.rarity] || 3) - (rarityOrder[b.rarity] || 3);
+  });
+
+  const grid = document.getElementById('achievements-grid');
+  if (!list.length) { grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1">אין הישגים בקטגוריה זו</div>'; return; }
+  grid.innerHTML = list.map(a => {
+    const isEarned = earned.has(a.key);
+    const rc = ACH_RARITY_COLOR[a.rarity] || ACH_RARITY_COLOR.common;
+    const rarityLabel = { common: 'נפוץ', rare: 'נדיר', epic: 'אפי', legendary: 'אגדי' }[a.rarity] || '';
+    return `<div class="ach-card ${isEarned ? 'earned' : 'locked'}" style="background:${rc.bg};border:1px solid ${rc.border};${isEarned ? `box-shadow:${rc.glow}` : ''}">
+      <div class="ach-emoji">${a.emoji}</div>
+      <div class="ach-info">
+        <div class="ach-name" style="color:${isEarned ? rc.text : 'var(--text-2)'}">${a.label}</div>
+        <div class="ach-desc">${isEarned ? a.desc : '🔒 ' + a.desc}</div>
+        <span class="ach-rarity" style="color:${rc.text}">${rarityLabel}</span>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function renderBadges(badges) {
   const earned = new Set(badges || []);
-  document.getElementById('badges-grid').innerHTML = ACHIEVEMENTS.map(a => `
-    <div class="badge-item ${earned.has(a.key) ? 'earned' : 'locked'}">
-      <span class="badge-emoji">${a.emoji}</span>
-      <span class="badge-label">${a.label}</span>
-    </div>`).join('');
+  const earnedList = ACHIEVEMENTS.filter(a => earned.has(a.key)).slice(0, 15);
+  const el = document.getElementById('badges-grid');
+  if (!el) return;
+  el.innerHTML = earnedList.length
+    ? earnedList.map(a => `
+      <div class="badge-item earned">
+        <span class="badge-emoji">${a.emoji}</span>
+        <span class="badge-label">${a.label}</span>
+      </div>`).join('')
+    : '<div style="padding:16px;color:var(--text-3);font-size:13px;text-align:center;grid-column:1/-1">טרם הושגו הישגים</div>';
 }
 
 // ══ SETTINGS ═════════════════════════════════════════════════════════════
@@ -1382,11 +1710,12 @@ auth.onAuthStateChanged(async user => {
   } else {
     if (workoutsUnsubscribe) { workoutsUnsubscribe(); workoutsUnsubscribe = null; }
     if (feedObserver)        { feedObserver.disconnect(); feedObserver = null; }
+    if (storyTimer)          { clearTimeout(storyTimer); storyTimer = null; }
     Object.values(commentListeners).forEach(u => u());
     Object.keys(commentListeners).forEach(k => delete commentListeners[k]);
     currentUser = null; userProfile = { goal: 3, friendIds: [], badges: [] };
     reminderDismissed = false; cachedUserDocs = []; goalWasHit = false; currentTab = 'home';
-    feedAllDocs = []; feedOffset = 0;
+    feedAllDocs = []; feedOffset = 0; achFilter = 'all';
     if (progressChart) { progressChart.destroy(); progressChart = null; }
     document.getElementById('auth-screen').classList.remove('hidden');
     document.getElementById('app').classList.add('hidden');
