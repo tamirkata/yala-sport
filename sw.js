@@ -1,5 +1,5 @@
 // ── Service Worker — יאלה ספורט ──
-const CACHE = 'yala-v21';
+const CACHE = 'yala-v22';
 const PRECACHE = ['./', './index.html', './app.js', './firebase-config.js', './manifest.json',
                   './design-system.css',
                   './icon.svg', './icon-192.png', './icon-512.png',
@@ -48,7 +48,7 @@ self.addEventListener('fetch', e => {
 self.addEventListener('push', e => {
   const data = e.data?.json() ?? {};
   e.waitUntil(
-    self.registration.showNotification(data.title ?? '💪 יאלה ספורט', {
+    self.registration.showNotification(data.title ?? '💪 go and move', {
       body:      data.body ?? 'הגיע הזמן להתאמן!',
       icon:      './icon-192.png',
       badge:     './icon-192.png',

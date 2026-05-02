@@ -17,7 +17,7 @@ const FEED_PAGE = 10;
 
 const ACHIEVEMENTS = [
   // ── צעדים ראשונים (tier 1) ──
-  { key:'app_day_1',        emoji:'📱', label:'ברוך הבא!',         desc:'הצטרפת ליאלה ספורט',                      rarity:'common',    cat:'special', tier:1 },
+  { key:'app_day_1',        emoji:'📱', label:'ברוך הבא!',         desc:'הצטרפת ל-go and move',                    rarity:'common',    cat:'special', tier:1 },
   { key:'first_workout',    emoji:'🥇', label:'הצעד הראשון',      desc:'סיימת את האימון הראשון שלך!',             rarity:'common',    cat:'first',   tier:1 },
   { key:'first_gym',        emoji:'🏋️', label:'מרים ברזל',        desc:'נכנסת לחדר כושר לראשונה',                 rarity:'common',    cat:'first',   tier:1 },
   { key:'first_run',        emoji:'🏃', label:'הריצה הראשונה',    desc:'יצאת לרוץ לראשונה',                       rarity:'common',    cat:'first',   tier:1 },
@@ -27,7 +27,7 @@ const ACHIEVEMENTS = [
   { key:'first_padel',      emoji:'🏓', label:'פאדל מאסטר',       desc:'שיחקת פאדל לראשונה',                      rarity:'common',    cat:'first',   tier:1 },
   { key:'first_treadmill',  emoji:'🔁', label:'על הליכון',         desc:'רצת על הליכון לראשונה',                  rarity:'common',    cat:'first',   tier:1 },
   { key:'first_photo',      emoji:'📷', label:'ספורטוגרף',        desc:'העלית תמונה ראשונה עם אימון',             rarity:'common',    cat:'first',   tier:1 },
-  { key:'first_friend',     emoji:'👥', label:'חבר ראשון',        desc:'הוספת חבר ראשון ליאלה',                   rarity:'common',    cat:'first',   tier:1 },
+  { key:'first_friend',     emoji:'👥', label:'חבר ראשון',        desc:'חבר ראשון באפליקציה',                     rarity:'common',    cat:'first',   tier:1 },
   { key:'first_like_recv',  emoji:'💪', label:'קיבלת לייק!',      desc:'קיבלת לייק ראשון על אימון',               rarity:'common',    cat:'first',   tier:1 },
   { key:'first_comment',    emoji:'💬', label:'תגובה ראשונה',     desc:'כתבת תגובה ראשונה',                       rarity:'common',    cat:'first',   tier:1 },
   // ── אבני דרך ראשונות (tier 2) ──
@@ -60,7 +60,7 @@ const ACHIEVEMENTS = [
   { key:'padel_10',         emoji:'🏓', label:'פאדל פרו',         desc:'10 אימוני פאדל',                          rarity:'common',    cat:'type',    tier:5 },
   { key:'treadmill_20',     emoji:'🔁', label:'הליכון מקצועי',    desc:'20 אימוני הליכון',                        rarity:'common',    cat:'type',    tier:5 },
   // ── חברתי + אתגרים (tier 6) ──
-  { key:'friends_5',        emoji:'🤝', label:'חמישה חברים',      desc:'הוספת 5 חברים ליאלה',                     rarity:'common',    cat:'social',  tier:6 },
+  { key:'friends_5',        emoji:'🤝', label:'חמישה חברים',      desc:'5 חברים באפליקציה',                       rarity:'common',    cat:'social',  tier:6 },
   { key:'liked_others_10',  emoji:'🙌', label:'מעריך',            desc:'נתת לייק ל-10 אימונים של חברים',          rarity:'common',    cat:'social',  tier:6 },
   { key:'likes_10',         emoji:'❤️', label:'אהוב',             desc:'קיבלת 10 לייקים על אימונים',              rarity:'rare',      cat:'social',  tier:6 },
   { key:'comments_10',      emoji:'🗣️', label:'מגיב פעיל',        desc:'כתבת 10 תגובות',                          rarity:'common',    cat:'social',  tier:6 },
@@ -78,7 +78,7 @@ const ACHIEVEMENTS = [
   { key:'workouts_50',      emoji:'🥈', label:'ספורטאי מנוסה',    desc:'50 אימונים סה"כ',                         rarity:'rare',      cat:'volume',  tier:7 },
   { key:'streak_30',        emoji:'💥', label:'חודש בוער',        desc:'התאמנת 30 ימים ברצף',                     rarity:'epic',      cat:'streak',  tier:7 },
   { key:'total_50h',        emoji:'🕐', label:'50 שעות',           desc:'50 שעות מצטברות',                         rarity:'rare',      cat:'duration',tier:7 },
-  { key:'friends_10',       emoji:'🎉', label:'פופולרי',          desc:'הוספת 10 חברים ליאלה',                    rarity:'rare',      cat:'social',  tier:7 },
+  { key:'friends_10',       emoji:'🎉', label:'פופולרי',          desc:'10 חברים באפליקציה',                      rarity:'rare',      cat:'social',  tier:7 },
   { key:'liked_others_50',  emoji:'💞', label:'תומך',             desc:'נתת לייק ל-50 אימונים',                   rarity:'rare',      cat:'social',  tier:7 },
   { key:'likes_50',         emoji:'🌟', label:'כוכב',             desc:'קיבלת 50 לייקים',                         rarity:'epic',      cat:'social',  tier:7 },
   { key:'comments_50',      emoji:'💬', label:'דיון פעיל',        desc:'כתבת 50 תגובות',                          rarity:'rare',      cat:'social',  tier:7 },
@@ -614,7 +614,7 @@ async function brandWorkoutImage(file, meta) {
       ctx.globalAlpha = 0.6;
       ctx.font = 'bold 26px Heebo, Arial, sans-serif';
       shadow();
-      ctx.fillText('💪 יאלה ספורט', rx, 54);
+      ctx.fillText('💪 go and move', rx, 54);
       noShadow();
       ctx.globalAlpha = 1;
 
@@ -2212,24 +2212,43 @@ async function autoFriendNewUser(newUid) {
 }
 
 async function migrateAllUsersToFriends() {
-  const flag = 'yala-aff-v1-' + currentUser.uid;
-  if (localStorage.getItem(flag)) return;
+  const migRef = db.collection('migrations').doc('globalFriendsMigration');
   try {
-    const snap = await db.collection('users').get();
-    const others = snap.docs.map(d => d.id).filter(id => id !== currentUser.uid);
-    if (!others.length) { localStorage.setItem(flag, '1'); return; }
-    const FV = firebase.firestore.FieldValue;
-    const batch = db.batch();
-    others.forEach(uid =>
-      batch.update(db.collection('users').doc(uid), { friendIds: FV.arrayUnion(currentUser.uid) })
-    );
-    batch.update(db.collection('users').doc(currentUser.uid), { friendIds: FV.arrayUnion(...others) });
-    await batch.commit();
-    // Sync in-memory profile so loadHomeLb sees updated friendIds immediately
-    const existing = new Set(userProfile.friendIds || []);
-    others.forEach(uid => existing.add(uid));
-    userProfile.friendIds = [...existing];
-    localStorage.setItem(flag, '1');
+    const migDoc = await migRef.get();
+    if (migDoc.exists && migDoc.data()?.completed) {
+      // Migration already ran globally — still sync in-memory profile from Firestore
+      const myDoc = await db.collection('users').doc(currentUser.uid).get();
+      if (myDoc.exists) userProfile.friendIds = myDoc.data().friendIds || [];
+      return;
+    }
+  } catch { /* rules not yet deployed or network error — fall through */ }
+
+  try {
+    const snap     = await db.collection('users').get();
+    const allUids  = snap.docs.map(d => d.id);
+    const total    = allUids.length;
+    if (total < 2) return;
+
+    console.log(`Starting global friends migration for ${total} users...`);
+    const CHUNK = 400;
+    for (let i = 0; i < allUids.length; i += CHUNK) {
+      const batch = db.batch();
+      allUids.slice(i, i + CHUNK).forEach((uid, j) => {
+        console.log(`Migrating user ${i + j + 1} of ${total}...`);
+        batch.update(db.collection('users').doc(uid),
+          { friendIds: allUids.filter(id => id !== uid) });
+      });
+      await batch.commit();
+    }
+
+    await migRef.set({
+      completed:    true,
+      completedAt:  firebase.firestore.FieldValue.serverTimestamp(),
+      usersCount:   total,
+    });
+
+    userProfile.friendIds = allUids.filter(id => id !== currentUser.uid);
+    console.log(`Migration complete: ${total} users are now all friends.`);
   } catch (e) { console.warn('migrateAllUsersToFriends failed', e); }
 }
 

@@ -9,15 +9,19 @@ service cloud.firestore {
     match /users/{uid} {
       allow read:   if isAuth();
       allow create: if isOwner(uid);
-      // Owner can update anything; any auth user may only add themselves to friendIds
+      // Owner can update anything; any auth user may update friendIds only (for auto-friend migration)
       allow update: if isOwner(uid) || (
         isAuth() &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['friendIds']) &&
-        request.resource.data.friendIds.toSet()
-          .difference(resource.data.get('friendIds', []).toSet())
-          .hasOnly([request.auth.uid])
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['friendIds'])
       );
       allow delete: if false;
+    }
+
+    // ── Migrations (global one-time flags) ──
+    match /migrations/{id} {
+      allow read:   if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if false;
     }
 
     // ── Workouts ──
