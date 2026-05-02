@@ -2036,11 +2036,11 @@ function openEditProfile() {
   selectGender(_editGender);
   selectFitnessGoal(_editFitnessGoal);
   document.getElementById('edit-profile-err').textContent = '';
-  document.getElementById('edit-profile-modal').classList.remove('hidden');
+  document.getElementById('edit-profile-modal').classList.add('show');
 }
 
 function closeEditProfile() {
-  document.getElementById('edit-profile-modal').classList.add('hidden');
+  document.getElementById('edit-profile-modal').classList.remove('show');
 }
 
 function onEditProfileBackdrop(e) {
