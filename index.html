@@ -927,23 +927,34 @@ textarea.form-input { resize: none; }
   max-height: 92vh; overflow-y: auto;
 }
 .modal-overlay.show .modal-sheet { transform: translateY(0); }
-.modal-handle { width: 44px; height: 4px; border-radius: 99px; background: var(--border); margin: 14px auto 22px; }
-.modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; }
+.modal-handle { width: 44px; height: 4px; border-radius: 99px; background: var(--border); margin: 14px auto 20px; }
+.modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
 .modal-title { font-size: 22px; font-weight: 900; }
-.modal-close { font-size: 22px; color: var(--text-3); padding: 4px; }
-.type-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 22px; }
-.type-btn {
-  display: flex; flex-direction: column; align-items: center; gap: 5px;
-  padding: 14px 4px; border-radius: var(--r-m);
-  border: 2px solid var(--border); background: var(--bg-3);
-  cursor: pointer; transition: all .15s;
+.modal-close {
+  font-size: 18px; color: var(--text-3);
+  width: 32px; height: 32px; border-radius: 50%; background: var(--bg-3);
+  display: flex; align-items: center; justify-content: center;
 }
-.type-btn .t-emoji { font-size: 26px; line-height: 1; }
-.type-btn .t-label { font-size: 10px; font-weight: 700; color: var(--text-3); text-align: center; }
-.type-btn.selected { border-color: var(--primary); background: rgba(255,59,92,.06); }
+.type-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 24px; }
+.type-btn {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 10px 4px; border-radius: var(--r-m);
+  border: 1px solid var(--border); background: var(--bg-card);
+  cursor: pointer; transition: transform .12s, background .12s, border-color .12s, box-shadow .12s;
+}
+.type-btn:active { transform: scale(.96); background: var(--bg-2); }
+.type-btn .t-emoji { font-size: 24px; line-height: 1; }
+.type-btn .t-label { font-size: 10px; font-weight: 600; color: var(--text-3); text-align: center; }
+.type-btn.selected {
+  border-color: var(--primary); background: rgba(255,59,92,.05);
+  transform: scale(1.02); box-shadow: 0 2px 8px rgba(255,59,92,.12);
+}
 .type-btn.selected .t-label { color: var(--primary); }
-.form-group { margin-bottom: 16px; }
-.form-label { display: block; font-size: 13px; font-weight: 700; color: var(--text-3); margin-bottom: 8px; }
+.form-group { margin-bottom: 20px; }
+.form-label {
+  display: block; font-size: 11px; font-weight: 600; color: var(--text-3);
+  margin-bottom: 8px; text-transform: uppercase; letter-spacing: .05em;
+}
 
 /* ══ TOAST ══════════════════════════════════════════════════════════════ */
 #toast {
@@ -1273,9 +1284,9 @@ textarea.form-input { resize: none; }
     <div style="font-size:28px;text-align:center;margin-bottom:10px">📸</div>
     <div style="font-weight:800;font-size:17px;text-align:center;margin-bottom:6px">שמור ללא תמונה?</div>
     <div style="font-size:13px;color:var(--text-3);text-align:center;margin-bottom:18px">אימון עם תמונה מקבל יותר לייקים</div>
-    <div style="display:flex;gap:10px">
-      <button class="btn-ghost btn-full" onclick="document.getElementById('no-photo-confirm').classList.remove('show')">אוסיף תמונה</button>
-      <button class="btn-primary btn-full" onclick="document.getElementById('no-photo-confirm').classList.remove('show');submitWorkout(true)">המשך בלי תמונה</button>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button class="btn-primary btn-full" onclick="document.getElementById('no-photo-confirm').classList.remove('show')">אוסיף תמונה 📸</button>
+      <button class="btn-ghost btn-full" onclick="document.getElementById('no-photo-confirm').classList.remove('show');submitWorkout(true)">המשך בלי תמונה</button>
     </div>
   </div>
 </div>

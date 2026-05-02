@@ -7,6 +7,10 @@ const WORKOUT_TYPES = [
   { key: 'tennis',     emoji: '🎾', label: 'טניס'      },
   { key: 'padel',      emoji: '🏓', label: 'פאדל'      },
   { key: 'treadmill',  emoji: '🔁', label: 'הליכון'    },
+  { key: 'yoga',       emoji: '🧘', label: 'יוגה'      },
+  { key: 'pilates',    emoji: '🤸', label: 'פילאטיס'   },
+  { key: 'walk',       emoji: '🚶', label: 'הליכה'     },
+  { key: 'boxing',     emoji: '🥊', label: 'אגרוף'     },
   { key: 'other',      emoji: '💪', label: 'אחר'       },
 ];
 const FEED_PAGE = 10;
