@@ -270,6 +270,7 @@ let workoutsUnsubscribe  = null;
 let feedAllDocs          = [];
 let feedOffset           = 0;
 let feedObserver         = null;
+let viewingUserId        = null;
 const commentListeners   = {};
 
 // ── Notifications state ──
@@ -1898,13 +1899,13 @@ async function loadFriendsList() {
     const docs = await Promise.all(friendIds.map(uid => db.collection('users').doc(uid).get()));
     el.innerHTML = docs.filter(d => d.exists).map(doc => {
       const u = doc.data();
-      return `<div class="friend-item">
+      return `<div class="friend-item" onclick="openFriendProfile('${doc.id}')" style="cursor:pointer">
         ${avatarHtml(u.name, u.photoUrl || '', 'lb-avatar', '42')}
         <div class="friend-info">
           <div class="friend-name">${escHtml(u.name || 'משתמש')}</div>
           <div class="friend-email">${escHtml(u.email || '')}</div>
         </div>
-        <span style="font-size:22px">💪</span>
+        <span style="font-size:18px;color:var(--text-3)">›</span>
       </div>`;
     }).join('');
   } catch (err) { el.innerHTML = '<div class="empty-state" style="padding:20px">שגיאה</div>'; }
@@ -2183,7 +2184,75 @@ function calcNutrition(p) {
 }
 
 // ══ SETTINGS / PROFILE ═══════════════════════════════════════════════════
-function renderSettings() { renderProfile(); }
+function renderSettings() {
+  if (viewingUserId) renderFriendProfile(viewingUserId);
+  else renderProfile();
+}
+
+function goToOwnProfile() {
+  viewingUserId = null;
+  switchTab('settings');
+}
+
+function openFriendProfile(uid) {
+  viewingUserId = uid;
+  switchTab('settings');
+}
+
+function closeViewingProfile() {
+  viewingUserId = null;
+  renderProfile();
+}
+
+async function renderFriendProfile(uid) {
+  const el = document.getElementById('profile-content');
+  if (!el) return;
+  el.innerHTML = `<div class="empty-state"><div style="font-size:48px;margin-bottom:12px">⏳</div>טוען פרופיל...</div>`;
+  try {
+    const [userDoc, workoutsSnap] = await Promise.all([
+      db.collection('users').doc(uid).get(),
+      db.collection('workouts').where('userId', '==', uid).get()
+    ]);
+    if (!userDoc.exists) throw new Error('not found');
+    const p    = userDoc.data();
+    const docs = workoutsSnap.docs.sort((a, b) => b.data().date.localeCompare(a.data().date));
+    const total  = docs.length;
+    const hours  = Math.round(docs.reduce((s, d) => s + (d.data().duration || 0), 0) / 60);
+    const streak = calcStreak(docs);
+    const name   = p.name || 'ספורטאי';
+    const photoUrl = p.photoUrl || '';
+    const avatarInner = photoUrl
+      ? `<img class="profile-avatar" src="${escHtml(photoUrl)}" alt="${escHtml(avatarOf(name))}">`
+      : `<div class="profile-avatar-init">${escHtml(avatarOf(name))}</div>`;
+    el.innerHTML = `
+      <button class="btn-ghost" onclick="closeViewingProfile()" style="margin-bottom:16px;display:flex;align-items:center;gap:6px">← חזרה לפרופיל שלי</button>
+      <div class="profile-header">
+        <div class="profile-avatar-wrap" style="cursor:default">${avatarInner}</div>
+        <div class="profile-header-info">
+          <div class="profile-name">${escHtml(name)}</div>
+          ${p.username ? `<div class="profile-username">@${escHtml(p.username)}</div>` : ''}
+        </div>
+      </div>
+      <div class="profile-stats-grid">
+        <div class="profile-stat"><div class="profile-stat-num">${total}</div><div class="profile-stat-label">אימונים</div></div>
+        <div class="profile-stat"><div class="profile-stat-num">${streak}🔥</div><div class="profile-stat-label">רצף נוכחי</div></div>
+        <div class="profile-stat"><div class="profile-stat-num">${p.goal || 3}</div><div class="profile-stat-label">יעד שבועי</div></div>
+        <div class="profile-stat"><div class="profile-stat-num">${hours}</div><div class="profile-stat-label">שעות</div></div>
+      </div>
+      <div class="profile-section">
+        <div class="workout-grid-header">⊞</div>
+        <div class="workout-grid" id="workout-grid"></div>
+      </div>
+    `;
+    renderWorkoutGrid(docs);
+  } catch (err) {
+    console.error('renderFriendProfile:', err);
+    el.innerHTML = `
+      <button class="btn-ghost" onclick="closeViewingProfile()" style="margin-bottom:16px">← חזרה</button>
+      <div class="empty-state"><div class="empty-icon">⚠️</div>לא ניתן לטעון את הפרופיל</div>
+    `;
+  }
+}
 
 function notifRow(key, label, sub, prefs) {
   return `<div class="settings-row" style="border-top:1px solid var(--border)">
@@ -2214,30 +2283,37 @@ function notifSettingsHtml(prefs) {
   </div>`;
 }
 
-function renderWorkoutGrid() {
+function renderWorkoutGrid(docs = null) {
   const el = document.getElementById('workout-grid');
   if (!el) return;
-  const docs = (cachedUserDocs || []).slice().sort((a, b) => {
+  const source = (docs || cachedUserDocs || []).slice().sort((a, b) => {
     const ta = a.data().createdAt?.toMillis?.() || new Date(a.data().date + 'T12:00:00').getTime();
     const tb = b.data().createdAt?.toMillis?.() || new Date(b.data().date + 'T12:00:00').getTime();
     return tb - ta;
   });
-  if (!docs.length) {
+  if (!source.length) {
     el.innerHTML = `<div style="grid-column:1/-1;padding:32px;text-align:center;color:var(--text-3);font-size:14px">עוד אין אימונים 💪</div>`;
     return;
   }
-  el.innerHTML = docs.map(doc => {
+  const isOwn = !docs; // own grid is editable
+  el.innerHTML = source.map(doc => {
     const w   = doc.data();
     const wid = doc.id;
+    const shortDate = w.date ? w.date.split('-').slice(1).reverse().join('.') : '';
+    const clickAttr = isOwn ? `onclick="editWorkout('${wid}')"` : '';
     if (w.photoUrl) {
-      return `<div class="workout-grid-cell" onclick="editWorkout('${wid}')">
+      return `<div class="workout-grid-cell" ${clickAttr} style="${isOwn ? 'cursor:pointer' : ''}">
         <img src="${escHtml(w.photoUrl)}" alt="${escHtml(w.typeName || '')}" loading="lazy">
+        <div class="workout-grid-info">
+          <div class="workout-grid-info-type">${w.typeEmoji || '💪'} ${escHtml(w.typeName || '')}</div>
+          <div class="workout-grid-info-date">${shortDate}</div>
+        </div>
       </div>`;
     }
-    return `<div class="workout-grid-cell workout-grid-cell--placeholder" onclick="editWorkout('${wid}')">
+    return `<div class="workout-grid-cell workout-grid-cell--placeholder" ${clickAttr} style="${isOwn ? 'cursor:pointer' : ''}">
       <div class="workout-grid-type">${w.typeEmoji || '💪'}</div>
       <div class="workout-grid-meta">${escHtml(w.typeName || w.type || '')}</div>
-      <div class="workout-grid-date">${fmtDate(w.date)}</div>
+      <div class="workout-grid-date">${shortDate}</div>
     </div>`;
   }).join('');
 }
@@ -2633,7 +2709,7 @@ auth.onAuthStateChanged(async user => {
     Object.keys(commentListeners).forEach(k => delete commentListeners[k]);
     currentUser = null; userProfile = { goal: 3, friendIds: [], badges: [] };
     notifPrefs = null; _notifDocs = [];
-    reminderDismissed = false; cachedUserDocs = []; goalWasHit = false; currentTab = 'home';
+    reminderDismissed = false; cachedUserDocs = []; goalWasHit = false; currentTab = 'home'; viewingUserId = null;
     _noWorkoutNotifSent = false; _weeklyGoalNotifSent = false;
     feedAllDocs = []; feedOffset = 0; achFilter = 'all';
     if (progressChart) { progressChart.destroy(); progressChart = null; }

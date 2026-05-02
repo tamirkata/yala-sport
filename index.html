@@ -970,6 +970,21 @@ textarea.form-input { resize: none; }
   transition: transform .2s;
 }
 .workout-grid-cell:active img { transform: scale(0.96); }
+/* Gradient overlay on photo cells */
+.workout-grid-cell:not(.workout-grid-cell--placeholder)::after {
+  content: ''; position: absolute; inset: auto 0 0 0;
+  height: 55%; pointer-events: none; z-index: 1;
+  background: linear-gradient(transparent, rgba(0,0,0,0.72));
+}
+/* Info label at bottom of photo cells */
+.workout-grid-info {
+  position: absolute; bottom: 5px; right: 5px; left: 5px;
+  color: #fff; text-align: right; z-index: 2;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+  pointer-events: none;
+}
+.workout-grid-info-type { font-size: 11px; font-weight: 800; line-height: 1.3; }
+.workout-grid-info-date { font-size: 9px; opacity: 0.78; margin-top: 1px; }
 .workout-grid-cell--placeholder {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   background: var(--glass); border: 1px solid var(--glass-border); gap: 4px;
@@ -1024,7 +1039,7 @@ textarea.form-input { resize: none; }
       <button class="notif-bell-btn" id="notif-bell-btn" onclick="openNotifInbox()">
         🔔<span class="notif-badge" id="notif-badge" style="display:none">0</span>
       </button>
-      <div class="user-badge" onclick="switchTab('settings')" style="cursor:pointer">
+      <div class="user-badge" onclick="goToOwnProfile()" style="cursor:pointer">
         <div class="week-count-badge" id="week-count-badge">0 🏋️</div>
         <div class="avatar-ring-wrap">
           <svg class="avatar-ring-svg" viewBox="0 0 52 52">
@@ -1190,7 +1205,7 @@ textarea.form-input { resize: none; }
     <div class="nav-item" id="nav-achievements" onclick="switchTab('achievements')">
       <span class="nav-icon">🏅</span><span>הישגים</span>
     </div>
-    <div class="nav-item" id="nav-settings" onclick="switchTab('settings')">
+    <div class="nav-item" id="nav-settings" onclick="goToOwnProfile()">
       <span class="nav-icon">👤</span><span>פרופיל</span>
     </div>
   </nav>
