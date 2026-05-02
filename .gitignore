@@ -1,0 +1,9 @@
+# ── Credentials — NEVER COMMIT ──────────────────────────
+serviceAccountKey.json
+.env
+
+# ── Runtime artifacts ────────────────────────────────────
+cleanup-log.txt
+node_modules/
+.DS_Store
+files.zip
