@@ -1,6 +1,8 @@
 // ── Service Worker — יאלה ספורט ──
-const CACHE = 'yala-v1';
-const PRECACHE = ['./', './index.html', './app.js', './firebase-config.js', './manifest.json'];
+const CACHE = 'yala-v2';
+const PRECACHE = ['./', './index.html', './app.js', './firebase-config.js', './manifest.json',
+                  './icon.svg', './icon-192.png', './icon-512.png',
+                  './apple-touch-icon.png', './favicon.ico'];
 
 self.addEventListener('install', e => {
   e.waitUntil(
@@ -47,8 +49,8 @@ self.addEventListener('push', e => {
   e.waitUntil(
     self.registration.showNotification(data.title ?? '💪 יאלה ספורט', {
       body:      data.body ?? 'הגיע הזמן להתאמן!',
-      icon:      './icon.png',
-      badge:     './icon.png',
+      icon:      './icon-192.png',
+      badge:     './icon-192.png',
       vibrate:   [200, 100, 200],
       dir:       'rtl',
       lang:      'he',
