@@ -1033,6 +1033,8 @@ function viewPhoto(url) {
 // ══ STORIES ══════════════════════════════════════════════════════════════
 const seenStories = new Set(JSON.parse(localStorage.getItem('seenStories') || '[]'));
 let storyDocs = [], storyIndex = 0, storyTimer = null;
+let storyPaused = false, storyRemaining = 5000, storyStartTime = 0;
+let storyPointerStartX = 0, storyPointerStartY = 0, storyLongPressTimer = null;
 
 async function loadStories() {
   const el = document.getElementById('stories-scroll');
@@ -1084,94 +1086,217 @@ function openStory(idx) {
 function showStoryAt(idx) {
   if (idx < 0) return;
   if (idx >= storyDocs.length) { closeStory(); return; }
-  storyIndex = idx;
+  storyIndex   = idx;
+  storyPaused  = false;
+  storyRemaining = 5000;
+
   const doc = storyDocs[idx];
   const w   = doc.data();
+  const isOwn = w.userId === currentUser.uid;
 
   seenStories.add(doc.id);
   try { localStorage.setItem('seenStories', JSON.stringify([...seenStories])); } catch {}
 
   document.getElementById('story-img').src = w.photoUrl;
 
-  const userInfo = document.getElementById('story-user-info');
-  userInfo.innerHTML = `
+  document.getElementById('story-user-info').innerHTML = `
     ${avatarHtml(w.userName || '?', w.userPhotoUrl || '', 'lb-avatar', '36')}
     <div style="margin-right:8px">
       <div class="story-user-name">${escHtml(w.userName || 'משתמש')}</div>
       <div class="story-time">${w.createdAt ? timeAgo(w.createdAt) : fmtDate(w.date)}</div>
     </div>`;
 
-  const cap  = document.getElementById('story-caption-bar');
-  const inner = (w.typeEmoji || w.notes || w.mood) ? `
+  const cap   = document.getElementById('story-caption-bar');
+  const pills = (w.typeEmoji || w.notes || w.mood) ? `
     <span class="story-pill">${w.typeEmoji || '💪'} ${escHtml(w.typeName || w.type)}</span>
     ${w.mood  ? `<div class="story-caption-text" style="margin-top:6px">💬 ${escHtml(w.mood)}</div>`  : ''}
     ${w.notes ? `<div class="story-caption-text" style="margin-top:4px">${escHtml(w.notes)}</div>` : ''}` : '';
-  cap.innerHTML = inner +
-    `<div class="story-views-row hidden" id="story-views-row" onclick="openStoryViewers()">
-       👁 <span id="story-views-count">0</span> צפיות
-     </div>`;
+  cap.innerHTML = pills + (isOwn
+    ? `<div class="story-views-row" id="story-views-row" onclick="openStoryViewers()">
+         <span>👁 <span id="story-views-count">0</span> צפיות</span>
+         <span class="story-swipe-hint">↑ החלק למעלה</span>
+       </div>`
+    : '');
 
-  // Progress bar animation
+  // Restart CSS animation
   const fill = document.getElementById('story-progress-fill');
-  fill.style.transition = 'none'; fill.style.width = '0%';
+  fill.style.animation = 'none';
   fill.offsetHeight;
-  fill.style.transition = 'width 5s linear'; fill.style.width = '100%';
+  fill.style.animation = 'story-progress 5s linear forwards';
+
   if (storyTimer) clearTimeout(storyTimer);
+  storyStartTime = Date.now();
   storyTimer = setTimeout(() => showStoryAt(storyIndex + 1), 5000);
 
-  // Record view (skip for own stories)
-  if (w.userId !== currentUser.uid) recordStoryView(doc.id);
+  if (!isOwn) recordStoryView(doc.id);
 
-  // Show viewer count for own stories
-  if (w.userId === currentUser.uid) {
+  if (isOwn) {
     doc.ref.get().then(fresh => {
-      const views = fresh.data().storyViews || [];
-      const row = document.getElementById('story-views-row');
-      if (!row) return;
-      row.dataset.views = JSON.stringify(views);
-      if (views.length > 0) {
-        row.classList.remove('hidden');
-        document.getElementById('story-views-count').textContent = views.length;
-      }
+      const views = fresh.data().storyViews || {};
+      const count = Array.isArray(views) ? views.length : Object.keys(views).length;
+      const el = document.getElementById('story-views-count');
+      if (el) el.textContent = count;
     }).catch(() => {});
   }
 }
 
-function handleStoryTap(e) {
-  const mid = window.innerWidth / 2;
-  if (e.clientX < mid) showStoryAt(storyIndex - 1);
-  else                  showStoryAt(storyIndex + 1);
+function pauseStory() {
+  if (storyPaused) return;
+  storyPaused    = true;
+  storyRemaining = Math.max(0, storyRemaining - (Date.now() - storyStartTime));
+  clearTimeout(storyTimer);
+  storyTimer = null;
+  const fill = document.getElementById('story-progress-fill');
+  if (fill) fill.style.animationPlayState = 'paused';
+}
+
+function resumeStory() {
+  if (!storyPaused) return;
+  storyPaused    = false;
+  storyStartTime = Date.now();
+  const fill = document.getElementById('story-progress-fill');
+  if (fill) fill.style.animationPlayState = 'running';
+  storyTimer = setTimeout(() => showStoryAt(storyIndex + 1), storyRemaining);
+}
+
+function onStoryPointerDown(e) {
+  storyPointerStartX = e.clientX;
+  storyPointerStartY = e.clientY;
+  if (e.target.closest('.story-close, .story-top')) return;
+  storyLongPressTimer = setTimeout(() => {
+    storyLongPressTimer = null;
+    pauseStory();
+  }, 180);
+}
+
+function onStoryPointerUp(e) {
+  const dy = storyPointerStartY - e.clientY;
+  const dx = Math.abs(e.clientX - storyPointerStartX);
+
+  // Swipe up → viewer sheet (own stories only)
+  if (dy > 60 && dx < 60) {
+    clearTimeout(storyLongPressTimer);
+    storyLongPressTimer = null;
+    pauseStory();
+    openStoryViewers();
+    return;
+  }
+
+  // Let interactive controls handle themselves
+  if (e.target.closest('.story-close, .story-views-row, .story-top')) {
+    clearTimeout(storyLongPressTimer);
+    storyLongPressTimer = null;
+    return;
+  }
+
+  if (storyLongPressTimer) {
+    // Short tap → navigate
+    clearTimeout(storyLongPressTimer);
+    storyLongPressTimer = null;
+    if (e.clientX < window.innerWidth / 2) showStoryAt(storyIndex - 1);
+    else showStoryAt(storyIndex + 1);
+  } else {
+    // Long press release → resume
+    if (storyPaused) resumeStory();
+  }
+}
+
+function onStoryPointerCancel() {
+  clearTimeout(storyLongPressTimer);
+  storyLongPressTimer = null;
+  if (storyPaused) resumeStory();
 }
 
 async function recordStoryView(docId) {
   if (!currentUser) return;
   try {
     await db.collection('workouts').doc(docId).update({
-      storyViews: firebase.firestore.FieldValue.arrayUnion({
-        uid:  currentUser.uid,
-        name: userProfile?.name || currentUser.displayName || 'משתמש',
-      }),
+      [`storyViews.${currentUser.uid}`]: {
+        name:     userProfile?.name || currentUser.displayName || 'משתמש',
+        viewedAt: firebase.firestore.Timestamp.now(),
+      },
     });
   } catch (e) {}
 }
 
-function openStoryViewers() {
-  const row = document.getElementById('story-views-row');
-  let views = [];
-  try { views = JSON.parse(row?.dataset?.views || '[]'); } catch {}
-  document.getElementById('story-viewers-list').innerHTML = views.length
-    ? views.map(v => `<div class="viewers-item">${escHtml(v.name || 'משתמש')}</div>`).join('')
-    : '<div style="padding:16px;color:var(--text-3);text-align:center">אף אחד עוד לא צפה</div>';
-  document.getElementById('story-viewers-sheet').classList.remove('hidden');
+async function openStoryViewers() {
+  if (storyIndex >= storyDocs.length) return;
+  const w = storyDocs[storyIndex].data();
+  if (w.userId !== currentUser.uid) return;
+
+  const sheet = document.getElementById('story-viewers-sheet');
+  const list  = document.getElementById('story-viewers-list');
+  sheet.classList.remove('hidden');
+  list.innerHTML = '<div class="viewers-loading">טוען...</div>';
+
+  try {
+    const fresh    = await storyDocs[storyIndex].ref.get();
+    const raw      = fresh.data().storyViews || {};
+    // Support both old array format and new map format
+    const viewMap  = Array.isArray(raw)
+      ? raw.reduce((m, v) => { m[v.uid] = v; return m; }, {})
+      : raw;
+
+    const friendIds = userProfile.friendIds || [];
+    if (!friendIds.length) {
+      list.innerHTML = '<div class="viewers-empty">אין חברים עדיין</div>';
+      return;
+    }
+
+    const friendDocs = await Promise.all(
+      friendIds.map(uid => db.collection('users').doc(uid).get())
+    );
+
+    const friends = friendDocs.filter(d => d.exists).map(d => {
+      const fd = d.data();
+      return {
+        uid:     d.id,
+        name:    fd.name || fd.displayName || 'משתמש',
+        photo:   fd.photoUrl || '',
+        view:    viewMap[d.id] || null,
+      };
+    });
+
+    // Viewers first (most recent), non-viewers at bottom
+    friends.sort((a, b) => {
+      if (a.view && !b.view) return -1;
+      if (!a.view && b.view) return 1;
+      if (a.view && b.view) {
+        const ta = a.view.viewedAt?.toMillis?.() || 0;
+        const tb = b.view.viewedAt?.toMillis?.() || 0;
+        return tb - ta;
+      }
+      return 0;
+    });
+
+    list.innerHTML = friends.map(f => `
+      <div class="viewers-item">
+        ${avatarHtml(f.name, f.photo, 'lb-avatar', '44')}
+        <div class="viewers-info">
+          <div class="viewers-name">${escHtml(f.name)}</div>
+          <div class="viewers-status${f.view ? '' : ' unseen'}">
+            ${f.view ? (f.view.viewedAt ? timeAgo(f.view.viewedAt) : 'ראה') : 'טרם צפה'}
+          </div>
+        </div>
+        ${f.view ? '<div class="viewers-check">✓</div>' : ''}
+      </div>`).join('');
+
+  } catch (err) {
+    console.error('openStoryViewers:', err);
+    list.innerHTML = '<div class="viewers-empty">שגיאה בטעינה</div>';
+  }
 }
 
 function closeStoryViewers() {
   document.getElementById('story-viewers-sheet').classList.add('hidden');
+  resumeStory();
 }
 
 function closeStory() {
+  if (storyLongPressTimer) { clearTimeout(storyLongPressTimer); storyLongPressTimer = null; }
+  if (storyTimer)          { clearTimeout(storyTimer); storyTimer = null; }
+  storyPaused = false;
   document.getElementById('story-overlay').classList.add('hidden');
-  if (storyTimer) { clearTimeout(storyTimer); storyTimer = null; }
   loadStories();
 }
 
