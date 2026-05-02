@@ -327,49 +327,52 @@ textarea.form-input { resize: none; }
   box-shadow: var(--sh-s);
 }
 
-/* ══ HOME — HERO ════════════════════════════════════════════════════════ */
-.hero-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--r-xl);
-  padding: 22px 22px 18px;
-  margin-bottom: 20px;
-  box-shadow: var(--sh-s);
-  text-align: center;
-  transition: transform .2s;
+/* ══ HOME — PROGRESS CARD ═══════════════════════════════════════════════ */
+.progress-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--r-xl); padding: 20px 18px 16px;
+  margin-bottom: 20px; box-shadow: var(--sh-s); transition: transform .2s;
 }
-.hero-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 4px; text-align: right; }
-.hero-greeting { font-size: 22px; font-weight: 800; margin-bottom: 3px; }
-.hero-greeting .wave { display: inline-block; }
-.hero-sub { font-size: 13px; color: var(--text-3); }
-
-/* Apple-Watch-style ring */
-.hero-ring-wrap { position: relative; width: 170px; height: 170px; margin: 8px auto 10px; }
-.hero-svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
-#hero-ring {
-  transform: rotate(-90deg); transform-origin: 50% 50%;
-  transition: stroke-dashoffset 1s cubic-bezier(.2,.8,.4,1);
+.pc-greeting { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+.pc-status { font-size: 13px; color: var(--text-3); margin-bottom: 14px; }
+.pc-count-row { display: flex; align-items: baseline; gap: 4px; margin-bottom: 2px; }
+.pc-count-x { font-size: 52px; font-weight: 900; line-height: 1; transition: color .3s; }
+.pc-count-x.goal-met { color: var(--primary); }
+.pc-count-sep { font-size: 28px; font-weight: 300; color: var(--text-3); margin: 0 3px; }
+.pc-count-y { font-size: 28px; font-weight: 500; color: var(--text-3); }
+.pc-count-label { font-size: 12px; color: var(--text-3); margin-bottom: 14px; }
+.pc-set-goal-link { color: var(--primary); cursor: pointer; margin-right: 6px; }
+.pc-tabs {
+  display: inline-flex; gap: 3px; background: var(--bg-3); border-radius: 99px;
+  padding: 3px; margin-bottom: 14px;
 }
-.hero-ring-inner {
-  position: absolute; inset: 0;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
+.pc-tab {
+  padding: 5px 14px; border-radius: 99px; font-size: 12px; font-weight: 700;
+  color: var(--text-3); border: none; background: none; cursor: pointer; transition: all .2s;
 }
-.hero-count { font-size: 60px; font-weight: 900; line-height: 1; }
-.hero-goal-frac { font-size: 15px; color: var(--text-3); margin-top: 2px; }
-.hero-ring-label { font-size: 10px; color: var(--text-3); text-transform: uppercase; letter-spacing: 1px; margin-top: 3px; }
-.hero-prog-text { font-size: 13px; color: var(--text-2); font-weight: 600; }
-
-/* ══ HOME — CHART ═══════════════════════════════════════════════════════ */
-.chart-card {
-  background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--r-l);
-  padding: 16px 14px 12px; margin-bottom: 20px;
+.pc-tab.active { background: var(--bg); color: var(--text); box-shadow: var(--sh-s); }
+.pc-chart-wrap { height: 90px; }
+.pc-bars-outer { display: flex; gap: 6px; height: 100%; direction: rtl; }
+.pc-bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.pc-bar-cell {
+  flex: 1; width: 100%; position: relative;
+  display: flex; flex-direction: column; justify-content: flex-end;
 }
-.chart-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-.chart-header-title { font-size: 14px; font-weight: 700; color: var(--text-2); }
-.chart-period-row { display: flex; gap: 4px; background: var(--bg-3); border-radius: 99px; padding: 3px; }
-.chart-period-btn { padding: 5px 12px; border-radius: 99px; font-size: 12px; font-weight: 700; color: var(--text-3); transition: all .2s; }
-.chart-period-btn.active { background: var(--bg); color: var(--text); box-shadow: var(--sh-s); }
-.chart-wrap { position: relative; height: 140px; }
+.pc-bar-fill { width: 100%; border-radius: 4px 4px 0 0; transform-origin: bottom; }
+.pc-bar-fill.filled   { background: var(--primary); height: 100%; }
+.pc-bar-fill.empty    { height: 100%; background: transparent; border: 1.5px solid var(--border); }
+.pc-bar-fill.future   { height: 100%; background: transparent; border: 1.5px dashed var(--border); }
+.pc-bar-fill.m-filled { background: var(--primary); }
+.pc-bar-fill.m-empty  { background: transparent; border: 1.5px solid var(--border); min-height: 18px; }
+.pc-bar-fill.m-future { background: transparent; border: 1.5px dashed var(--border); min-height: 18px; }
+.pc-bar-animate { animation: pcBarRise .4s ease both; }
+.pc-bar-label { font-size: 11px; color: var(--text-3); font-weight: 600; flex-shrink: 0; }
+.pc-bar-label.today { color: var(--primary); font-weight: 800; }
+.pc-bar-count {
+  position: absolute; top: -16px; width: 100%; text-align: center;
+  font-size: 10px; font-weight: 800; color: var(--text-2);
+}
+@keyframes pcBarRise { from { transform: scaleY(0) } to { transform: scaleY(1) } }
 
 /* ══ SKELETON LOADERS ════════════════════════════════════════════════════ */
 .skel {
@@ -1061,45 +1064,7 @@ textarea.form-input { resize: none; }
         <div id="activity-feed"></div>
       </div>
 
-      <div class="hero-card" id="hero-card">
-        <div class="hero-top">
-          <div>
-            <div class="hero-greeting" id="hero-greeting">שלום! <span class="wave">👋</span></div>
-            <div class="hero-sub" id="hero-sub">בוא נראה מה השבוע הביא</div>
-          </div>
-        </div>
-        <div class="hero-ring-wrap">
-          <svg class="hero-svg" viewBox="0 0 170 170">
-            <defs>
-              <linearGradient id="hero-ring-grad" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stop-color="#FF3B5C"/>
-                <stop offset="100%" stop-color="#FF6B9D"/>
-              </linearGradient>
-            </defs>
-            <circle cx="85" cy="85" r="74" fill="none" stroke="#E8E8E8" stroke-width="14"/>
-            <circle id="hero-ring" cx="85" cy="85" r="74" fill="none"
-              stroke="url(#hero-ring-grad)" stroke-width="14" stroke-linecap="round"
-              stroke-dasharray="464.9" stroke-dashoffset="464.9"/>
-          </svg>
-          <div class="hero-ring-inner">
-            <div class="hero-count" id="hero-num">0</div>
-            <div class="hero-goal-frac">/ <span id="hero-denom">3</span></div>
-            <div class="hero-ring-label">אימונים</div>
-          </div>
-        </div>
-        <div class="hero-prog-text" id="hero-prog-text">עוד 3 לסיום היעד</div>
-      </div>
-
-      <div class="chart-card">
-        <div class="chart-header">
-          <div class="chart-header-title">ההתקדמות שלי</div>
-          <div class="chart-period-row">
-            <button class="chart-period-btn active" id="chart-weekly-btn" onclick="setChartPeriod('weekly')">שבועי</button>
-            <button class="chart-period-btn" id="chart-monthly-btn" onclick="setChartPeriod('monthly')">חודשי</button>
-          </div>
-        </div>
-        <div class="chart-wrap"><canvas id="progress-chart"></canvas></div>
-      </div>
+      <div class="progress-card" id="progress-card"></div>
     </div>
 
     <!-- LEADERBOARD -->
@@ -1374,7 +1339,6 @@ textarea.form-input { resize: none; }
 
 <div id="toast"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>

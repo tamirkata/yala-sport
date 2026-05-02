@@ -711,40 +711,16 @@ function subscribeWorkouts(onFirst) {
     }, err => console.error('Workouts listener:', err));
 }
 
-// Recomputes and renders the weekly counter, progress ring, and header badge
+// Recomputes stats and badge; called by the workouts snapshot listener
 function updateWeeklyStats() {
-  if (!currentUser) return;
-  const wStart    = weekKey();
-  const wEnd      = localDateStr(new Date(new Date(wStart + 'T00:00:00').getTime() + 6 * 86400000));
-  const goal      = userProfile.goal || 3;
-  const weekCount = cachedUserDocs.filter(d => { const dt = d.data().date; return dt >= wStart && dt <= wEnd; }).length;
-  const pct       = Math.min(100, Math.round((weekCount / goal) * 100));
-  const remaining = Math.max(0, goal - weekCount);
-
-  animateCounter(document.getElementById('hero-num'), weekCount);
-  const badge = document.getElementById('week-count-badge');
-  if (badge) badge.textContent = `${weekCount} 🏋️`;
-  updateHeroRing(pct);
-  updateAvatarRing(pct);
-
-  const subEl  = document.getElementById('hero-sub');
-  const progEl = document.getElementById('hero-prog-text');
-  if (remaining === 0) {
-    if (subEl)  subEl.textContent  = 'השגת את היעד השבועי! 🎉';
-    if (progEl) progEl.textContent = 'כל הכבוד! 🏆';
-    if (!goalWasHit) { goalWasHit = true; setTimeout(launchConfetti, 600); }
-  } else {
-    if (subEl)  subEl.textContent  = 'יאלה, נמשיך!';
-    if (progEl) progEl.textContent = `עוד ${remaining} אימונים לסיום היעד`;
-    goalWasHit = false;
-  }
+  renderProgressSection();
 }
 
 // ══ PARALLAX / SCROLL ════════════════════════════════════════════════════
 function initScrollEffects() {
   const content = document.getElementById('app-content');
   const header  = document.getElementById('app-header');
-  const hero    = document.getElementById('hero-card');
+  const hero    = document.getElementById('progress-card');
   if (!content) return;
   content.addEventListener('scroll', () => {
     const y = content.scrollTop;
@@ -1040,21 +1016,7 @@ async function deleteWorkout(wid) {
 // cachedUserDocs is kept current by subscribeWorkouts(); this just renders the view
 async function loadHomeView() {
   if (!currentUser) return;
-  const name  = currentUser.displayName || 'ספורטאי';
-  const first = name.split(/\s+/)[0];
-
-  // week label removed (Fix 9)
-  document.getElementById('hero-denom').textContent        = String(userProfile.goal || 3);
-
-  const greetEl = document.getElementById('hero-greeting');
-  if (greetEl) {
-    greetEl.innerHTML = `שלום, ${escHtml(first)}! <span class="wave" style="display:inline-block;animation:wave 1.5s ease .3s 1">👋</span>`;
-  }
-
-  // Stats are kept current by the onSnapshot listener — just sync the UI
-  updateWeeklyStats();
-  renderProgressChart();
-
+  renderProgressSection();
   document.getElementById('activity-feed').innerHTML = skeletonFeed(3);
   loadActivityFeed();
   loadStories();
@@ -1063,85 +1025,127 @@ async function loadHomeView() {
   checkWeeklyGoalReminder();
 }
 
-// ══ PROGRESS CHART ═══════════════════════════════════════════════════════
-function setChartPeriod(period) {
+// ══ PROGRESS CARD ════════════════════════════════════════════════════════
+function setPeriod(period) {
   chartPeriod = period;
-  document.getElementById('chart-weekly-btn').classList.toggle('active', period === 'weekly');
-  document.getElementById('chart-monthly-btn').classList.toggle('active', period === 'monthly');
-  renderProgressChart();
+  renderProgressSection();
 }
 
-function renderProgressChart() {
-  const canvas = document.getElementById('progress-chart');
-  if (!canvas) return;
-  if (progressChart) { progressChart.destroy(); progressChart = null; }
+function renderProgressSection() {
+  const card = document.getElementById('progress-card');
+  if (!card || !currentUser) return;
 
-  const labels = [], data = [];
-  const hebrewMonths = ['ינו','פבר','מרץ','אפר','מאי','יונ','יול','אוג','ספט','אוק','נוב','דצמ'];
+  const goal      = userProfile?.goal || 3;
+  const first     = (currentUser.displayName || 'ספורטאי').split(/\s+/)[0];
+  const now       = new Date();
+  const todayStr  = localDateStr(now);
+  const weekdayN  = now.getDay();                                   // 0=Sun
 
-  if (chartPeriod === 'weekly') {
-    for (let i = 7; i >= 0; i--) {
-      const wStart = weekKey(-i);
-      const wEnd   = localDateStr(new Date(new Date(wStart + 'T00:00:00').getTime() + 6 * 86400000));
-      const d      = new Date(wStart + 'T12:00:00');
-      labels.push(`${d.getDate()}/${d.getMonth() + 1}`);
-      data.push(cachedUserDocs.filter(doc => { const dt = doc.data().date; return dt >= wStart && dt <= wEnd; }).length);
-    }
-  } else {
-    const now = new Date();
-    for (let i = 5; i >= 0; i--) {
-      const d      = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const mStart = localDateStr(d);
-      const mEnd   = localDateStr(new Date(d.getFullYear(), d.getMonth() + 1, 0));
-      labels.push(hebrewMonths[d.getMonth()]);
-      data.push(cachedUserDocs.filter(doc => { const dt = doc.data().date; return dt >= mStart && dt <= mEnd; }).length);
-    }
+  // Weekly: Sun–Sat (Israeli week)
+  const sunDate   = new Date(now);
+  sunDate.setDate(now.getDate() - weekdayN);
+  sunDate.setHours(0, 0, 0, 0);
+  const DAY_LABELS = ['א','ב','ג','ד','ה','ו','ש'];
+  const weekDays   = Array.from({ length: 7 }, (_, i) => {
+    const d       = new Date(sunDate.getTime() + i * 86400000);
+    const dateStr = localDateStr(d);
+    return {
+      dateStr,
+      dayName:    DAY_LABELS[i],
+      hasWorkout: cachedUserDocs.some(doc => doc.data().date === dateStr),
+      isFuture:   dateStr > todayStr,
+      isToday:    dateStr === todayStr,
+    };
+  });
+  const weekCount = weekDays.filter(d => d.hasWorkout && !d.isFuture).length;
+
+  // Monthly
+  const mStart     = localDateStr(new Date(now.getFullYear(), now.getMonth(), 1));
+  const mEnd       = localDateStr(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+  const monthCount = cachedUserDocs.filter(d => { const dt = d.data().date; return dt >= mStart && dt <= mEnd; }).length;
+  const daysInMon  = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const monthGoal  = goal * Math.ceil(daysInMon / 7);
+
+  // Weeks of month (Sun-aligned)
+  const monthWeeks = [];
+  const mStartDate = new Date(mStart + 'T00:00:00');
+  const ws0 = new Date(mStartDate);
+  ws0.setDate(mStartDate.getDate() - mStartDate.getDay());
+  const mEndDate = new Date(mEnd + 'T23:59:59');
+  for (let wk = 1, ws = ws0; ws <= mEndDate && wk <= 6; wk++, ws.setDate(ws.getDate() + 7)) {
+    const wsStr = localDateStr(ws);
+    const weStr = localDateStr(new Date(ws.getTime() + 6 * 86400000));
+    const cnt   = cachedUserDocs.filter(d => { const dt = d.data().date; return dt >= wsStr && dt <= weStr; }).length;
+    monthWeeks.push({ label: `ש${wk}`, count: cnt,
+      isCurrent: todayStr >= wsStr && todayStr <= weStr,
+      isFuture:  wsStr > todayStr });
   }
 
-  const maxVal = Math.max(...data, 1);
-  progressChart = new Chart(canvas, {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [{
-        data,
-        backgroundColor: data.map((v, i) =>
-          i === data.length - 1
-            ? '#FF3B5C'
-            : v >= (userProfile.goal || 3)
-              ? '#22C55E'
-              : 'rgba(255,59,92,.35)'),
-        borderRadius: 6,
-        borderSkipped: false,
-      }],
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          backgroundColor: '#FFFFFF',
-          borderColor: '#EFEFEF', borderWidth: 1,
-          titleColor: '#737373', bodyColor: '#0A0A0A',
-          padding: 10, cornerRadius: 10,
-          callbacks: { label: ctx => ` ${ctx.raw} אימונים` },
-        },
-      },
-      scales: {
-        y: {
-          beginAtZero: true, max: maxVal + 1,
-          ticks: { stepSize: 1, precision: 0, color: 'rgba(0,0,0,.3)', font: { size: 11 } },
-          grid: { color: 'rgba(0,0,0,.04)' },
-          border: { color: 'transparent' },
-        },
-        x: {
-          grid: { display: false },
-          ticks: { color: 'rgba(0,0,0,.35)', font: { size: 10 } },
-          border: { color: 'transparent' },
-        },
-      },
-    },
+  // Status message
+  const remaining = Math.max(0, goal - weekCount);
+  const goalMet   = weekCount >= goal;
+  const statusMsg = goalMet
+    ? 'השגת את היעד השבועי שלך! 🎉'
+    : weekCount === 0
+      ? (weekdayN >= 4 ? 'עוד לא מאוחר להתחיל! 💪' : 'השבוע מתחיל! בוא נזוז 💪')
+      : weekCount / goal >= 0.6 && weekdayN >= 4
+        ? 'אתה במסלול הנכון, תמשיך! 🔥'
+        : `עוד ${remaining} אימונים ואתה שם! 💪`;
+
+  const isWeekly     = chartPeriod === 'weekly';
+  const displayCount = isWeekly ? weekCount : monthCount;
+  const displayGoal  = isWeekly ? goal : monthGoal;
+  const periodLabel  = isWeekly ? 'אימונים השבוע' : 'אימונים החודש';
+  const maxMonthVal  = Math.max(...monthWeeks.map(w => w.count), goal, 1);
+
+  card.innerHTML = `
+    <div class="pc-greeting">שלום, ${escHtml(first)}! <span class="wave" style="display:inline-block;animation:wave 1.5s ease .3s 1">👋</span></div>
+    <div class="pc-status">${statusMsg}</div>
+    <div class="pc-count-row">
+      <span class="pc-count-x${goalMet ? ' goal-met' : ''}">${displayCount}</span>
+      <span class="pc-count-sep">/</span>
+      <span class="pc-count-y">${displayGoal}</span>
+    </div>
+    <div class="pc-count-label">${periodLabel}${!userProfile?.goal ? ' <span class="pc-set-goal-link" onclick="switchTab(\'profile\')">הגדר יעד</span>' : ''}</div>
+    <div class="pc-tabs">
+      <button class="pc-tab${isWeekly ? ' active' : ''}" onclick="setPeriod('weekly')">שבועי</button>
+      <button class="pc-tab${!isWeekly ? ' active' : ''}" onclick="setPeriod('monthly')">חודשי</button>
+    </div>
+    <div class="pc-chart-wrap">
+      <div class="pc-bars-outer">
+        ${isWeekly ? _renderWeekBars(weekDays) : _renderMonthBars(monthWeeks, maxMonthVal)}
+      </div>
+    </div>`;
+
+  requestAnimationFrame(() => {
+    card.querySelectorAll('.pc-bar-fill').forEach((b, i) => {
+      b.style.animationDelay = `${i * 45}ms`;
+      b.classList.add('pc-bar-animate');
+    });
   });
+
+  // Avatar ring + badge + confetti
+  updateAvatarRing(Math.min(100, Math.round((weekCount / goal) * 100)));
+  const badge = document.getElementById('week-count-badge');
+  if (badge) badge.textContent = `${weekCount} 🏋️`;
+  if (goalMet && !goalWasHit) { goalWasHit = true; setTimeout(launchConfetti, 400); }
+  else if (!goalMet) goalWasHit = false;
+}
+
+function _renderWeekBars(days) {
+  return days.map(d => {
+    const cls = d.hasWorkout ? 'filled' : d.isFuture ? 'future' : 'empty';
+    return `<div class="pc-bar-col"><div class="pc-bar-cell"><div class="pc-bar-fill ${cls}"></div></div><div class="pc-bar-label${d.isToday ? ' today' : ''}">${d.dayName}</div></div>`;
+  }).join('');
+}
+
+function _renderMonthBars(weeks, maxVal) {
+  const BH = 66;
+  return weeks.map(w => {
+    const ht  = w.isFuture ? BH : w.count === 0 ? 18 : Math.max(14, Math.round(w.count / maxVal * BH));
+    const cls = w.isFuture ? 'm-future' : w.count > 0 ? 'm-filled' : 'm-empty';
+    return `<div class="pc-bar-col"><div class="pc-bar-cell">${!w.isFuture && w.count > 0 ? `<div class="pc-bar-count">${w.count}</div>` : ''}<div class="pc-bar-fill ${cls}" style="height:${ht}px"></div></div><div class="pc-bar-label${w.isCurrent ? ' today' : ''}">${w.label}</div></div>`;
+  }).join('');
 }
 
 // ══ ACTIVITY FEED ════════════════════════════════════════════════════════
@@ -2920,7 +2924,6 @@ auth.onAuthStateChanged(async user => {
     reminderDismissed = false; cachedUserDocs = []; goalWasHit = false; currentTab = 'home'; viewingUserId = null;
     _noWorkoutNotifSent = false; _weeklyGoalNotifSent = false;
     feedAllDocs = []; feedOffset = 0; achFilter = 'all';
-    if (progressChart) { progressChart.destroy(); progressChart = null; }
     document.getElementById('auth-screen').classList.remove('hidden');
     document.getElementById('app').classList.add('hidden');
   }
