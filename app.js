@@ -12,122 +12,117 @@ const WORKOUT_TYPES = [
 const FEED_PAGE = 10;
 
 const ACHIEVEMENTS = [
-  // ── צעדים ראשונים ──
-  { key:'first_workout',    emoji:'🥇', label:'הצעד הראשון',      desc:'סיימת את האימון הראשון שלך!',             rarity:'common',    cat:'first'  },
-  { key:'first_gym',        emoji:'🏋️', label:'מרים ברזל',        desc:'נכנסת לחדר כושר לראשונה',                 rarity:'common',    cat:'first'  },
-  { key:'first_run',        emoji:'🏃', label:'הריצה הראשונה',    desc:'יצאת לרוץ לראשונה',                       rarity:'common',    cat:'first'  },
-  { key:'first_swim',       emoji:'🏊', label:'לשחות!',           desc:'שחית לראשונה',                            rarity:'common',    cat:'first'  },
-  { key:'first_basketball', emoji:'🏀', label:'כדורסל!',          desc:'שיחקת כדורסל לראשונה',                    rarity:'common',    cat:'first'  },
-  { key:'first_tennis',     emoji:'🎾', label:'אייס!',            desc:'שיחקת טניס לראשונה',                      rarity:'common',    cat:'first'  },
-  { key:'first_padel',      emoji:'🏓', label:'פאדל מאסטר',       desc:'שיחקת פאדל לראשונה',                      rarity:'common',    cat:'first'  },
-  { key:'first_treadmill',  emoji:'🔁', label:'על הליכון',         desc:'רצת על הליכון לראשונה',                  rarity:'common',    cat:'first'  },
-  { key:'first_photo',      emoji:'📷', label:'ספורטוגרף',        desc:'העלית תמונה ראשונה עם אימון',             rarity:'common',    cat:'first'  },
-  { key:'first_friend',     emoji:'👥', label:'חבר ראשון',        desc:'הוספת חבר ראשון ליאלה',                   rarity:'common',    cat:'first'  },
-  { key:'first_like_recv',  emoji:'💪', label:'קיבלת לייק!',      desc:'קיבלת לייק ראשון על אימון',               rarity:'common',    cat:'first'  },
-  { key:'first_comment',    emoji:'💬', label:'תגובה ראשונה',     desc:'כתבת תגובה ראשונה',                       rarity:'common',    cat:'first'  },
-  // ── רצפים ──
-  { key:'streak_3',         emoji:'🔥', label:'3 ימים רצוף',      desc:'התאמנת 3 ימים ברצף',                      rarity:'common',    cat:'streak' },
-  { key:'streak_7',         emoji:'🔥', label:'שבוע בוער',        desc:'התאמנת 7 ימים ברצף',                      rarity:'rare',      cat:'streak' },
-  { key:'streak_14',        emoji:'🔥', label:'שבועיים אש',       desc:'התאמנת 14 ימים ברצף',                     rarity:'rare',      cat:'streak' },
-  { key:'streak_30',        emoji:'💥', label:'חודש בוער',        desc:'התאמנת 30 ימים ברצף',                     rarity:'epic',      cat:'streak' },
-  { key:'streak_60',        emoji:'🌋', label:'60 ימים',          desc:'התאמנת 60 ימים ברצף',                     rarity:'epic',      cat:'streak' },
-  { key:'streak_100',       emoji:'⚡', label:'100 ימים!',        desc:'מאה ימי אימון ברצף — מדהים!',             rarity:'legendary', cat:'streak' },
-  // ── נפח ──
-  { key:'workouts_5',       emoji:'🌱', label:'מתחיל',            desc:'5 אימונים סה"כ',                          rarity:'common',    cat:'volume' },
-  { key:'workouts_10',      emoji:'💪', label:'מתרגל',            desc:'10 אימונים סה"כ',                         rarity:'common',    cat:'volume' },
-  { key:'workouts_25',      emoji:'🏅', label:'שגרה בריאה',       desc:'25 אימונים סה"כ',                         rarity:'common',    cat:'volume' },
-  { key:'workouts_50',      emoji:'🥈', label:'ספורטאי מנוסה',    desc:'50 אימונים סה"כ',                         rarity:'rare',      cat:'volume' },
-  { key:'workouts_100',     emoji:'💯', label:'100 אימונים',      desc:'מאה אימונים — מאה אחוז!',                 rarity:'rare',      cat:'volume' },
-  { key:'workouts_200',     emoji:'🥇', label:'ספורטאי רציני',    desc:'200 אימונים סה"כ',                        rarity:'epic',      cat:'volume' },
-  { key:'workouts_365',     emoji:'📅', label:'שנה שלמה',         desc:'365 אימונים — שנה של כושר!',              rarity:'epic',      cat:'volume' },
-  { key:'workouts_500',     emoji:'👑', label:'לגנד',             desc:'500 אימונים — אלוף!',                     rarity:'legendary', cat:'volume' },
-  { key:'workouts_1000',    emoji:'🏆', label:'אל הכושר',         desc:'1000 אימונים — יש כאלה!',                 rarity:'legendary', cat:'volume' },
-  // ── מגוון ──
-  { key:'variety_3',        emoji:'🎨', label:'מגוון',            desc:'ניסית 3 סוגי אימון שונים',                rarity:'common',    cat:'variety' },
-  { key:'variety_5',        emoji:'🌈', label:'ספורטאי מגוון',    desc:'ניסית 5 סוגי אימון שונים',                rarity:'rare',      cat:'variety' },
-  { key:'variety_all',      emoji:'🎭', label:'ספורטאי שלם',      desc:'ניסית את כל 8 סוגי האימון',               rarity:'epic',      cat:'variety' },
-  { key:'same_type_10',     emoji:'🎯', label:'מתמחה',            desc:'10 אימונים מאותו סוג',                    rarity:'common',    cat:'variety' },
-  { key:'same_type_50',     emoji:'🔬', label:'מומחה',            desc:'50 אימונים מאותו סוג',                    rarity:'rare',      cat:'variety' },
-  // ── יעדים שבועיים ──
-  { key:'weekly_goal_1',    emoji:'✅', label:'יעד ראשון',        desc:'השגת את היעד השבועי לראשונה',             rarity:'common',    cat:'goals'  },
-  { key:'weekly_goal_4',    emoji:'📆', label:'4 שבועות',         desc:'השגת את היעד השבועי 4 פעמים',             rarity:'common',    cat:'goals'  },
-  { key:'weekly_goal_10',   emoji:'🔟', label:'10 שבועות',        desc:'השגת את היעד השבועי 10 פעמים',            rarity:'rare',      cat:'goals'  },
-  { key:'weekly_goal_20',   emoji:'🌟', label:'20 שבועות',        desc:'השגת את היעד השבועי 20 פעמים',            rarity:'epic',      cat:'goals'  },
-  { key:'weekly_goal_52',   emoji:'🎊', label:'שנה של יעדים',     desc:'השגת את היעד השבועי 52 פעמים',            rarity:'legendary', cat:'goals'  },
-  { key:'overachieve',      emoji:'🚀', label:'מעבר ליעד',        desc:'השלמת פי 2 מהיעד השבועי שלך',            rarity:'rare',      cat:'goals'  },
-  { key:'perfect_week_4',   emoji:'🏆', label:'חודש מושלם',       desc:'4 שבועות ברצף עם יעד שבועי מלא',         rarity:'epic',      cat:'goals'  },
-  // ── חברתי ──
-  { key:'friends_5',        emoji:'🤝', label:'חמישה חברים',      desc:'הוספת 5 חברים ליאלה',                     rarity:'common',    cat:'social' },
-  { key:'friends_10',       emoji:'🎉', label:'פופולרי',          desc:'הוספת 10 חברים ליאלה',                    rarity:'rare',      cat:'social' },
-  { key:'likes_10',         emoji:'❤️', label:'אהוב',             desc:'קיבלת 10 לייקים על אימונים',              rarity:'rare',      cat:'social' },
-  { key:'likes_50',         emoji:'🌟', label:'כוכב',             desc:'קיבלת 50 לייקים',                         rarity:'epic',      cat:'social' },
-  { key:'likes_100',        emoji:'💫', label:'סופרסטאר',         desc:'קיבלת 100 לייקים',                        rarity:'legendary', cat:'social' },
-  { key:'comments_10',      emoji:'🗣️', label:'מגיב פעיל',        desc:'כתבת 10 תגובות',                          rarity:'common',    cat:'social' },
-  { key:'comments_50',      emoji:'💬', label:'דיון פעיל',        desc:'כתבת 50 תגובות',                          rarity:'rare',      cat:'social' },
-  { key:'liked_others_10',  emoji:'🙌', label:'מעריך',            desc:'נתת לייק ל-10 אימונים של חברים',          rarity:'common',    cat:'social' },
-  { key:'liked_others_50',  emoji:'💞', label:'תומך',             desc:'נתת לייק ל-50 אימונים',                   rarity:'rare',      cat:'social' },
-  { key:'group_workout',    emoji:'👫', label:'אימון יחד',        desc:'חבר שלך התאמן באותו יום',                 rarity:'common',    cat:'social' },
-  // ── זמן ──
-  { key:'early_bird',       emoji:'🌅', label:'עוף מוקדם',        desc:'התאמנת לפני 7 בבוקר',                     rarity:'rare',      cat:'time'   },
-  { key:'dawn_patrol',      emoji:'🌄', label:'פטרול שחר',        desc:'התאמנת לפני 6 בבוקר',                     rarity:'epic',      cat:'time'   },
-  { key:'morning_5',        emoji:'☀️', label:'5 בקרים',           desc:'התאמנת 5 פעמים בבוקר (לפני 9)',          rarity:'common',    cat:'time'   },
-  { key:'morning_20',       emoji:'🌞', label:'20 בקרים',          desc:'התאמנת 20 פעמים בבוקר',                  rarity:'rare',      cat:'time'   },
-  { key:'night_owl',        emoji:'🦉', label:'ינשוף הלילה',      desc:'התאמנת אחרי 22:00',                       rarity:'rare',      cat:'time'   },
-  { key:'night_5',          emoji:'🌙', label:'5 לילות',           desc:'התאמנת 5 פעמים בלילה (אחרי 21)',          rarity:'common',    cat:'time'   },
-  { key:'weekend_warrior',  emoji:'🗓️', label:'לוחם סופ"ש',       desc:'התאמנת בשבת ובראשון',                    rarity:'common',    cat:'time'   },
-  { key:'long_session',     emoji:'⏱️', label:'מרתון',            desc:'אימון של שעה ויותר',                      rarity:'rare',      cat:'time'   },
-  { key:'super_long',       emoji:'🕐', label:'אולטרה',           desc:'אימון של שעתיים ויותר',                   rarity:'epic',      cat:'time'   },
-  { key:'quick_fire',       emoji:'⚡', label:'מהיר כברק',        desc:'אימון קצר של עד 20 דקות',                rarity:'common',    cat:'time'   },
-  // ── חודשי ──
-  { key:'monthly_goal',     emoji:'📅', label:'יעד חודשי',        desc:'השגת את היעד החודשי',                     rarity:'rare',      cat:'monthly'},
-  { key:'monthly_double',   emoji:'💥', label:'חודש כפול',        desc:'הכפלת את היעד החודשי',                    rarity:'epic',      cat:'monthly'},
-  { key:'every_month_6',    emoji:'📊', label:'חצי שנה',          desc:'יעד חודשי 6 חודשים ברצף',                rarity:'epic',      cat:'monthly'},
-  { key:'every_month_12',   emoji:'🎊', label:'שנה של יעדים',     desc:'יעד חודשי 12 חודשים ברצף',               rarity:'legendary', cat:'monthly'},
-  // ── ספציפי לסוג ──
-  { key:'gym_20',           emoji:'🏋️', label:'חדר כושר קבוע',   desc:'20 אימוני חדר כושר',                      rarity:'common',    cat:'type'   },
-  { key:'gym_100',          emoji:'🦍', label:'בודיבילדר',        desc:'100 אימוני חדר כושר',                     rarity:'epic',      cat:'type'   },
-  { key:'run_20',           emoji:'🏃', label:'רץ',               desc:'20 אימוני ריצה',                          rarity:'common',    cat:'type'   },
-  { key:'run_50',           emoji:'🥇', label:'מרתוניסט',         desc:'50 אימוני ריצה',                          rarity:'rare',      cat:'type'   },
-  { key:'swim_10',          emoji:'🏊', label:'שחיין',            desc:'10 שיחיות',                               rarity:'common',    cat:'type'   },
-  { key:'swim_30',          emoji:'🐬', label:'דולפין',           desc:'30 שיחיות',                               rarity:'rare',      cat:'type'   },
-  { key:'bball_10',         emoji:'🏀', label:'שחקן כדורסל',      desc:'10 משחקי כדורסל',                         rarity:'common',    cat:'type'   },
-  { key:'tennis_10',        emoji:'🎾', label:'טניסאי',           desc:'10 אימוני טניס',                          rarity:'common',    cat:'type'   },
-  { key:'padel_10',         emoji:'🏓', label:'פאדל פרו',         desc:'10 אימוני פאדל',                          rarity:'common',    cat:'type'   },
-  { key:'treadmill_20',     emoji:'🔁', label:'הליכון מקצועי',    desc:'20 אימוני הליכון',                        rarity:'common',    cat:'type'   },
-  // ── מדיה ──
-  { key:'photos_5',         emoji:'📸', label:'אלבום כושר',       desc:'העלית 5 תמונות אימון',                    rarity:'common',    cat:'media'  },
-  { key:'photos_20',        emoji:'🎞️', label:'צלם כושר',         desc:'העלית 20 תמונות אימון',                   rarity:'rare',      cat:'media'  },
-  { key:'stories_5',        emoji:'🎬', label:'סטוריז קבוע',      desc:'פרסמת 5 סטוריז',                          rarity:'common',    cat:'media'  },
-  { key:'stories_20',       emoji:'🎥', label:'יוטיובר כושר',     desc:'פרסמת 20 סטוריז',                         rarity:'rare',      cat:'media'  },
-  { key:'mood_writer',      emoji:'✍️', label:'יומן כושר',        desc:'הוספת תיאור ל-10 אימונים',                rarity:'common',    cat:'media'  },
-  // ── עקביות ──
-  { key:'no_skip_month',    emoji:'📆', label:'ללא דילוג',         desc:'לא פספסת שבוע במשך חודש',                rarity:'epic',      cat:'consist'},
-  { key:'rain_or_shine',    emoji:'🌦️', label:'בכל מזג אוויר',    desc:'4 שבועות ברצף עם לפחות אימון אחד',       rarity:'rare',      cat:'consist'},
-  { key:'mon_to_fri',       emoji:'5️⃣', label:'5 ימי עבודה',      desc:'5 אימונים מיום א׳ עד ה׳',                rarity:'rare',      cat:'consist'},
-  // ── אתגרים ──
-  { key:'5_in_week',        emoji:'5️⃣', label:'שבוע אש',          desc:'5 אימונים בשבוע אחד',                     rarity:'rare',      cat:'chall'  },
-  { key:'7_in_week',        emoji:'7️⃣', label:'שבוע מדהים',       desc:'7 אימונים בשבוע אחד',                     rarity:'epic',      cat:'chall'  },
-  { key:'double_day',       emoji:'✌️', label:'יום כפול',          desc:'שני אימונים ביום אחד',                    rarity:'rare',      cat:'chall'  },
-  { key:'diverse_week',     emoji:'🎨', label:'שבוע צבעוני',      desc:'3 סוגי אימון שונים באותו שבוע',           rarity:'rare',      cat:'chall'  },
-  { key:'best_week',        emoji:'📈', label:'שבוע השיא',         desc:'שבוע עם יותר אימונים מתמיד',              rarity:'rare',      cat:'chall'  },
-  { key:'top_leaderboard',  emoji:'🥇', label:'ראשון בליגה',       desc:'הגעת למקום ראשון בלוח השיאים',            rarity:'epic',      cat:'chall'  },
-  // ── שוברי קוד ──
-  { key:'comeback',         emoji:'🔄', label:'חזרה לעניינים',     desc:'חזרת לאמן אחרי הפסקה של שבוע',           rarity:'common',    cat:'special'},
-  { key:'gym_rat',          emoji:'🐀', label:'חולדת הכושר',      desc:'50 אימוני חדר כושר',                      rarity:'rare',      cat:'special'},
-  { key:'friday_sport',     emoji:'🌅', label:'שישי ספורט',       desc:'התאמנת 5 פעמים ביום שישי',                rarity:'common',    cat:'special'},
-  { key:'jan_1',            emoji:'🥂', label:'שנה חדשה חדשה',    desc:'התאמנת ב-1 בינואר',                       rarity:'rare',      cat:'special'},
-  { key:'good_mood',        emoji:'😊', label:'אנרגיה טובה',      desc:'הוספת הרגשה חיובית ל-5 אימונים',          rarity:'common',    cat:'special'},
-  { key:'app_day_1',        emoji:'📱', label:'ברוך הבא!',         desc:'הצטרפת ליאלה ספורט',                      rarity:'common',    cat:'special'},
-  // ── משך זמן ──
-  { key:'total_10h',        emoji:'⏱️', label:'10 שעות',           desc:'10 שעות מצטברות של אימונים',              rarity:'common',    cat:'duration'},
-  { key:'total_50h',        emoji:'🕐', label:'50 שעות',           desc:'50 שעות מצטברות',                         rarity:'rare',      cat:'duration'},
-  { key:'total_100h',       emoji:'💯', label:'100 שעות',          desc:'100 שעות מצטברות',                        rarity:'epic',      cat:'duration'},
-  { key:'total_500h',       emoji:'🏆', label:'500 שעות',          desc:'500 שעות — מקצועי לגמרי!',               rarity:'legendary', cat:'duration'},
-  // ── אגדות ──
-  { key:'ach_25',           emoji:'⭐', label:'25 הישגים',         desc:'השגת 25 הישגים',                          rarity:'rare',      cat:'meta'   },
-  { key:'ach_50',           emoji:'🌟', label:'50 הישגים',         desc:'השגת 50 הישגים',                          rarity:'epic',      cat:'meta'   },
-  { key:'legend',           emoji:'⚡', label:'אגדה',              desc:'השגת 100 הישגים',                         rarity:'legendary', cat:'meta'   },
-  { key:'completionist',    emoji:'💎', label:'קומפלטיוניסט',      desc:'השגת 150 הישגים',                         rarity:'legendary', cat:'meta'   },
+  // ── צעדים ראשונים (tier 1) ──
+  { key:'app_day_1',        emoji:'📱', label:'ברוך הבא!',         desc:'הצטרפת ליאלה ספורט',                      rarity:'common',    cat:'special', tier:1 },
+  { key:'first_workout',    emoji:'🥇', label:'הצעד הראשון',      desc:'סיימת את האימון הראשון שלך!',             rarity:'common',    cat:'first',   tier:1 },
+  { key:'first_gym',        emoji:'🏋️', label:'מרים ברזל',        desc:'נכנסת לחדר כושר לראשונה',                 rarity:'common',    cat:'first',   tier:1 },
+  { key:'first_run',        emoji:'🏃', label:'הריצה הראשונה',    desc:'יצאת לרוץ לראשונה',                       rarity:'common',    cat:'first',   tier:1 },
+  { key:'first_swim',       emoji:'🏊', label:'לשחות!',           desc:'שחית לראשונה',                            rarity:'common',    cat:'first',   tier:1 },
+  { key:'first_basketball', emoji:'🏀', label:'כדורסל!',          desc:'שיחקת כדורסל לראשונה',                    rarity:'common',    cat:'first',   tier:1 },
+  { key:'first_tennis',     emoji:'🎾', label:'אייס!',            desc:'שיחקת טניס לראשונה',                      rarity:'common',    cat:'first',   tier:1 },
+  { key:'first_padel',      emoji:'🏓', label:'פאדל מאסטר',       desc:'שיחקת פאדל לראשונה',                      rarity:'common',    cat:'first',   tier:1 },
+  { key:'first_treadmill',  emoji:'🔁', label:'על הליכון',         desc:'רצת על הליכון לראשונה',                  rarity:'common',    cat:'first',   tier:1 },
+  { key:'first_photo',      emoji:'📷', label:'ספורטוגרף',        desc:'העלית תמונה ראשונה עם אימון',             rarity:'common',    cat:'first',   tier:1 },
+  { key:'first_friend',     emoji:'👥', label:'חבר ראשון',        desc:'הוספת חבר ראשון ליאלה',                   rarity:'common',    cat:'first',   tier:1 },
+  { key:'first_like_recv',  emoji:'💪', label:'קיבלת לייק!',      desc:'קיבלת לייק ראשון על אימון',               rarity:'common',    cat:'first',   tier:1 },
+  { key:'first_comment',    emoji:'💬', label:'תגובה ראשונה',     desc:'כתבת תגובה ראשונה',                       rarity:'common',    cat:'first',   tier:1 },
+  // ── אבני דרך ראשונות (tier 2) ──
+  { key:'workouts_5',       emoji:'🌱', label:'מתחיל',            desc:'5 אימונים סה"כ',                          rarity:'common',    cat:'volume',  tier:2 },
+  { key:'workouts_10',      emoji:'💪', label:'מתרגל',            desc:'10 אימונים סה"כ',                         rarity:'common',    cat:'volume',  tier:2 },
+  // ── מגוון (tier 3) ──
+  { key:'variety_3',        emoji:'🎨', label:'מגוון',            desc:'ניסית 3 סוגי אימון שונים',                rarity:'common',    cat:'variety', tier:3 },
+  { key:'variety_5',        emoji:'🌈', label:'ספורטאי מגוון',    desc:'ניסית 5 סוגי אימון שונים',                rarity:'rare',      cat:'variety', tier:3 },
+  { key:'same_type_10',     emoji:'🎯', label:'מתמחה',            desc:'10 אימונים מאותו סוג',                    rarity:'common',    cat:'variety', tier:3 },
+  // ── רצפים ראשוניים (tier 4) ──
+  { key:'streak_3',         emoji:'🔥', label:'3 ימים רצוף',      desc:'התאמנת 3 ימים ברצף',                      rarity:'common',    cat:'streak',  tier:4 },
+  { key:'streak_7',         emoji:'🔥', label:'שבוע בוער',        desc:'התאמנת 7 ימים ברצף',                      rarity:'rare',      cat:'streak',  tier:4 },
+  { key:'comeback',         emoji:'🔄', label:'חזרה לעניינים',     desc:'חזרת לאמן אחרי הפסקה של שבוע',           rarity:'common',    cat:'special', tier:4 },
+  { key:'good_mood',        emoji:'😊', label:'אנרגיה טובה',      desc:'הוספת הרגשה חיובית ל-5 אימונים',          rarity:'common',    cat:'special', tier:4 },
+  { key:'quick_fire',       emoji:'⚡', label:'מהיר כברק',        desc:'אימון קצר של עד 20 דקות',                rarity:'common',    cat:'time',    tier:4 },
+  { key:'weekend_warrior',  emoji:'🗓️', label:'לוחם סופ"ש',       desc:'התאמנת בשבת ובראשון',                    rarity:'common',    cat:'time',    tier:4 },
+  // ── נפח בינוני + ספציפי לסוג (tier 5) ──
+  { key:'workouts_25',      emoji:'🏅', label:'שגרה בריאה',       desc:'25 אימונים סה"כ',                         rarity:'common',    cat:'volume',  tier:5 },
+  { key:'streak_14',        emoji:'🔥', label:'שבועיים אש',       desc:'התאמנת 14 ימים ברצף',                     rarity:'rare',      cat:'streak',  tier:5 },
+  { key:'total_10h',        emoji:'⏱️', label:'10 שעות',           desc:'10 שעות מצטברות של אימונים',              rarity:'common',    cat:'duration',tier:5 },
+  { key:'photos_5',         emoji:'📸', label:'אלבום כושר',       desc:'העלית 5 תמונות אימון',                    rarity:'common',    cat:'media',   tier:5 },
+  { key:'stories_5',        emoji:'🎬', label:'סטוריז קבוע',      desc:'פרסמת 5 סטוריז',                          rarity:'common',    cat:'media',   tier:5 },
+  { key:'mood_writer',      emoji:'✍️', label:'יומן כושר',        desc:'הוספת תיאור ל-10 אימונים',                rarity:'common',    cat:'media',   tier:5 },
+  { key:'friday_sport',     emoji:'🌅', label:'שישי ספורט',       desc:'התאמנת 5 פעמים ביום שישי',                rarity:'common',    cat:'special', tier:5 },
+  { key:'gym_20',           emoji:'🏋️', label:'חדר כושר קבוע',   desc:'20 אימוני חדר כושר',                      rarity:'common',    cat:'type',    tier:5 },
+  { key:'run_20',           emoji:'🏃', label:'רץ',               desc:'20 אימוני ריצה',                          rarity:'common',    cat:'type',    tier:5 },
+  { key:'swim_10',          emoji:'🏊', label:'שחיין',            desc:'10 שיחיות',                               rarity:'common',    cat:'type',    tier:5 },
+  { key:'bball_10',         emoji:'🏀', label:'שחקן כדורסל',      desc:'10 משחקי כדורסל',                         rarity:'common',    cat:'type',    tier:5 },
+  { key:'tennis_10',        emoji:'🎾', label:'טניסאי',           desc:'10 אימוני טניס',                          rarity:'common',    cat:'type',    tier:5 },
+  { key:'padel_10',         emoji:'🏓', label:'פאדל פרו',         desc:'10 אימוני פאדל',                          rarity:'common',    cat:'type',    tier:5 },
+  { key:'treadmill_20',     emoji:'🔁', label:'הליכון מקצועי',    desc:'20 אימוני הליכון',                        rarity:'common',    cat:'type',    tier:5 },
+  // ── חברתי + אתגרים (tier 6) ──
+  { key:'friends_5',        emoji:'🤝', label:'חמישה חברים',      desc:'הוספת 5 חברים ליאלה',                     rarity:'common',    cat:'social',  tier:6 },
+  { key:'liked_others_10',  emoji:'🙌', label:'מעריך',            desc:'נתת לייק ל-10 אימונים של חברים',          rarity:'common',    cat:'social',  tier:6 },
+  { key:'likes_10',         emoji:'❤️', label:'אהוב',             desc:'קיבלת 10 לייקים על אימונים',              rarity:'rare',      cat:'social',  tier:6 },
+  { key:'comments_10',      emoji:'🗣️', label:'מגיב פעיל',        desc:'כתבת 10 תגובות',                          rarity:'common',    cat:'social',  tier:6 },
+  { key:'group_workout',    emoji:'👫', label:'אימון יחד',        desc:'חבר שלך התאמן באותו יום',                 rarity:'common',    cat:'social',  tier:6 },
+  { key:'weekly_goal_1',    emoji:'✅', label:'יעד ראשון',        desc:'השגת את היעד השבועי לראשונה',             rarity:'common',    cat:'goals',   tier:6 },
+  { key:'weekly_goal_4',    emoji:'📆', label:'4 שבועות',         desc:'השגת את היעד השבועי 4 פעמים',             rarity:'common',    cat:'goals',   tier:6 },
+  { key:'monthly_goal',     emoji:'📅', label:'יעד חודשי',        desc:'השגת את היעד החודשי',                     rarity:'rare',      cat:'monthly', tier:6 },
+  { key:'5_in_week',        emoji:'5️⃣', label:'שבוע אש',          desc:'5 אימונים בשבוע אחד',                     rarity:'rare',      cat:'chall',   tier:6 },
+  { key:'double_day',       emoji:'✌️', label:'יום כפול',          desc:'שני אימונים ביום אחד',                    rarity:'rare',      cat:'chall',   tier:6 },
+  { key:'diverse_week',     emoji:'🎨', label:'שבוע צבעוני',      desc:'3 סוגי אימון שונים באותו שבוע',           rarity:'rare',      cat:'chall',   tier:6 },
+  { key:'early_bird',       emoji:'🌅', label:'עוף מוקדם',        desc:'התאמנת לפני 7 בבוקר',                     rarity:'rare',      cat:'time',    tier:6 },
+  { key:'night_owl',        emoji:'🦉', label:'ינשוף הלילה',      desc:'התאמנת אחרי 22:00',                       rarity:'rare',      cat:'time',    tier:6 },
+  { key:'long_session',     emoji:'⏱️', label:'מרתון',            desc:'אימון של שעה ויותר',                      rarity:'rare',      cat:'time',    tier:6 },
+  // ── נפח מתקדם + עקביות (tier 7) ──
+  { key:'workouts_50',      emoji:'🥈', label:'ספורטאי מנוסה',    desc:'50 אימונים סה"כ',                         rarity:'rare',      cat:'volume',  tier:7 },
+  { key:'streak_30',        emoji:'💥', label:'חודש בוער',        desc:'התאמנת 30 ימים ברצף',                     rarity:'epic',      cat:'streak',  tier:7 },
+  { key:'total_50h',        emoji:'🕐', label:'50 שעות',           desc:'50 שעות מצטברות',                         rarity:'rare',      cat:'duration',tier:7 },
+  { key:'friends_10',       emoji:'🎉', label:'פופולרי',          desc:'הוספת 10 חברים ליאלה',                    rarity:'rare',      cat:'social',  tier:7 },
+  { key:'liked_others_50',  emoji:'💞', label:'תומך',             desc:'נתת לייק ל-50 אימונים',                   rarity:'rare',      cat:'social',  tier:7 },
+  { key:'likes_50',         emoji:'🌟', label:'כוכב',             desc:'קיבלת 50 לייקים',                         rarity:'epic',      cat:'social',  tier:7 },
+  { key:'comments_50',      emoji:'💬', label:'דיון פעיל',        desc:'כתבת 50 תגובות',                          rarity:'rare',      cat:'social',  tier:7 },
+  { key:'overachieve',      emoji:'🚀', label:'מעבר ליעד',        desc:'השלמת פי 2 מהיעד השבועי שלך',            rarity:'rare',      cat:'goals',   tier:7 },
+  { key:'rain_or_shine',    emoji:'🌦️', label:'בכל מזג אוויר',    desc:'4 שבועות ברצף עם לפחות אימון אחד',       rarity:'rare',      cat:'consist', tier:7 },
+  { key:'mon_to_fri',       emoji:'5️⃣', label:'5 ימי עבודה',      desc:'5 אימונים מיום א׳ עד ה׳',                rarity:'rare',      cat:'consist', tier:7 },
+  { key:'weekly_goal_10',   emoji:'🔟', label:'10 שבועות',        desc:'השגת את היעד השבועי 10 פעמים',            rarity:'rare',      cat:'goals',   tier:7 },
+  { key:'morning_20',       emoji:'🌞', label:'20 בקרים',          desc:'התאמנת 20 פעמים בבוקר',                  rarity:'rare',      cat:'time',    tier:7 },
+  { key:'super_long',       emoji:'🕐', label:'אולטרה',           desc:'אימון של שעתיים ויותר',                   rarity:'epic',      cat:'time',    tier:7 },
+  { key:'dawn_patrol',      emoji:'🌄', label:'פטרול שחר',        desc:'התאמנת לפני 6 בבוקר',                     rarity:'epic',      cat:'time',    tier:7 },
+  { key:'morning_5',        emoji:'☀️', label:'5 בקרים',           desc:'התאמנת 5 פעמים בבוקר (לפני 9)',          rarity:'common',    cat:'time',    tier:7 },
+  { key:'night_5',          emoji:'🌙', label:'5 לילות',           desc:'התאמנת 5 פעמים בלילה (אחרי 21)',          rarity:'common',    cat:'time',    tier:7 },
+  { key:'run_50',           emoji:'🥇', label:'מרתוניסט',         desc:'50 אימוני ריצה',                          rarity:'rare',      cat:'type',    tier:7 },
+  { key:'swim_30',          emoji:'🐬', label:'דולפין',           desc:'30 שיחיות',                               rarity:'rare',      cat:'type',    tier:7 },
+  { key:'gym_rat',          emoji:'🐀', label:'חולדת הכושר',      desc:'50 אימוני חדר כושר',                      rarity:'rare',      cat:'special', tier:7 },
+  { key:'photos_20',        emoji:'🎞️', label:'צלם כושר',         desc:'העלית 20 תמונות אימון',                   rarity:'rare',      cat:'media',   tier:7 },
+  { key:'stories_20',       emoji:'🎥', label:'יוטיובר כושר',     desc:'פרסמת 20 סטוריז',                         rarity:'rare',      cat:'media',   tier:7 },
+  { key:'best_week',        emoji:'📈', label:'שבוע השיא',         desc:'שבוע עם יותר אימונים מתמיד',              rarity:'rare',      cat:'chall',   tier:7 },
+  { key:'jan_1',            emoji:'🥂', label:'שנה חדשה חדשה',    desc:'התאמנת ב-1 בינואר',                       rarity:'rare',      cat:'special', tier:7 },
+  { key:'variety_all',      emoji:'🎭', label:'ספורטאי שלם',      desc:'ניסית את כל 8 סוגי האימון',               rarity:'epic',      cat:'variety', tier:7 },
+  { key:'same_type_50',     emoji:'🔬', label:'מומחה',            desc:'50 אימונים מאותו סוג',                    rarity:'rare',      cat:'variety', tier:7 },
+  // ── יעדים + רמה גבוהה (tier 8) ──
+  { key:'workouts_100',     emoji:'💯', label:'100 אימונים',      desc:'מאה אימונים — מאה אחוז!',                 rarity:'rare',      cat:'volume',  tier:8 },
+  { key:'weekly_goal_20',   emoji:'🌟', label:'20 שבועות',        desc:'השגת את היעד השבועי 20 פעמים',            rarity:'epic',      cat:'goals',   tier:8 },
+  { key:'monthly_double',   emoji:'💥', label:'חודש כפול',        desc:'הכפלת את היעד החודשי',                    rarity:'epic',      cat:'monthly', tier:8 },
+  { key:'perfect_week_4',   emoji:'🏆', label:'חודש מושלם',       desc:'4 שבועות ברצף עם יעד שבועי מלא',         rarity:'epic',      cat:'goals',   tier:8 },
+  { key:'no_skip_month',    emoji:'📆', label:'ללא דילוג',         desc:'לא פספסת שבוע במשך חודש',                rarity:'epic',      cat:'consist', tier:8 },
+  { key:'top_leaderboard',  emoji:'🥇', label:'ראשון בליגה',       desc:'הגעת למקום ראשון בלוח השיאים',            rarity:'epic',      cat:'chall',   tier:8 },
+  { key:'7_in_week',        emoji:'7️⃣', label:'שבוע מדהים',       desc:'7 אימונים בשבוע אחד',                     rarity:'epic',      cat:'chall',   tier:8 },
+  { key:'gym_100',          emoji:'🦍', label:'בודיבילדר',        desc:'100 אימוני חדר כושר',                     rarity:'epic',      cat:'type',    tier:8 },
+  { key:'total_100h',       emoji:'💯', label:'100 שעות',          desc:'100 שעות מצטברות',                        rarity:'epic',      cat:'duration',tier:8 },
+  { key:'every_month_6',    emoji:'📊', label:'חצי שנה',          desc:'יעד חודשי 6 חודשים ברצף',                rarity:'epic',      cat:'monthly', tier:8 },
+  // ── עלית (tier 9) ──
+  { key:'workouts_200',     emoji:'🥇', label:'ספורטאי רציני',    desc:'200 אימונים סה"כ',                        rarity:'epic',      cat:'volume',  tier:9 },
+  { key:'workouts_365',     emoji:'📅', label:'שנה שלמה',         desc:'365 אימונים — שנה של כושר!',              rarity:'epic',      cat:'volume',  tier:9 },
+  { key:'streak_60',        emoji:'🌋', label:'60 ימים',          desc:'התאמנת 60 ימים ברצף',                     rarity:'epic',      cat:'streak',  tier:9 },
+  { key:'streak_100',       emoji:'⚡', label:'100 ימים!',        desc:'מאה ימי אימון ברצף — מדהים!',             rarity:'legendary', cat:'streak',  tier:9 },
+  { key:'every_month_12',   emoji:'🎊', label:'שנה של יעדים',     desc:'יעד חודשי 12 חודשים ברצף',               rarity:'legendary', cat:'monthly', tier:9 },
+  { key:'weekly_goal_52',   emoji:'🎊', label:'שנה של יעדים',     desc:'השגת את היעד השבועי 52 פעמים',            rarity:'legendary', cat:'goals',   tier:9 },
+  { key:'likes_100',        emoji:'💫', label:'סופרסטאר',         desc:'קיבלת 100 לייקים',                        rarity:'legendary', cat:'social',  tier:9 },
+  { key:'ach_25',           emoji:'⭐', label:'25 הישגים',         desc:'השגת 25 הישגים',                          rarity:'rare',      cat:'meta',    tier:9 },
+  // ── אגדות (tier 10) ──
+  { key:'workouts_500',     emoji:'👑', label:'לגנד',             desc:'500 אימונים — אלוף!',                     rarity:'legendary', cat:'volume',  tier:10 },
+  { key:'workouts_1000',    emoji:'🏆', label:'אל הכושר',         desc:'1000 אימונים — יש כאלה!',                 rarity:'legendary', cat:'volume',  tier:10 },
+  { key:'total_500h',       emoji:'🏆', label:'500 שעות',          desc:'500 שעות — מקצועי לגמרי!',               rarity:'legendary', cat:'duration',tier:10 },
+  { key:'ach_50',           emoji:'🌟', label:'50 הישגים',         desc:'השגת 50 הישגים',                          rarity:'epic',      cat:'meta',    tier:10 },
+  { key:'legend',           emoji:'⚡', label:'אגדה',              desc:'השגת 100 הישגים',                         rarity:'legendary', cat:'meta',    tier:10 },
+  { key:'completionist',    emoji:'💎', label:'קומפלטיוניסט',      desc:'השגת 150 הישגים',                         rarity:'legendary', cat:'meta',    tier:10 },
 ];
 
 const ACH_RARITY_COLOR = {
@@ -136,6 +131,102 @@ const ACH_RARITY_COLOR = {
   epic:      { bg:'rgba(139,92,246,.12)',  border:'rgba(139,92,246,.4)',   text:'#A78BFA',       glow:'0 0 16px rgba(139,92,246,.35)' },
   legendary: { bg:'rgba(255,208,60,.12)',  border:'rgba(255,208,60,.45)',  text:'#FFD060',       glow:'0 0 20px rgba(255,208,60,.45)' },
 };
+
+function getAchievementProgress(key) {
+  const docs = cachedUserDocs || [];
+  const total = docs.length;
+  const tc = {};
+  docs.forEach(d => { const t = d.data().type; tc[t] = (tc[t] || 0) + 1; });
+  const maxType = Math.max(...Object.values(tc), 0);
+  const uniqueTypes = new Set(docs.map(d => d.data().type)).size;
+  const totalMins = docs.reduce((s, d) => s + (d.data().duration || 0), 0);
+  const totalHours = Math.round(totalMins / 60 * 10) / 10;
+  const streak = calcStreak(docs);
+  const withPhotos = docs.filter(d => d.data().photoUrl).length;
+  const withDesc = docs.filter(d => d.data().mood || d.data().notes).length;
+  const withMood = docs.filter(d => d.data().mood).length;
+  const friendCount = (userProfile?.friendIds || []).length;
+  const badgeCount = (userProfile?.badges || []).length;
+  const goal = userProfile?.goal || 3;
+
+  function weeklyGoalHits() {
+    const weekCounts = {};
+    docs.forEach(d => {
+      const date = new Date(d.data().date + 'T12:00:00');
+      const day = date.getDay();
+      const monday = new Date(date.getTime() - ((day + 6) % 7) * 86400000);
+      const wk = monday.toISOString().split('T')[0];
+      weekCounts[wk] = (weekCounts[wk] || 0) + 1;
+    });
+    return Object.values(weekCounts).filter(c => c >= goal).length;
+  }
+
+  const thisWeek = (() => {
+    const wStart = weekKey();
+    const wEnd = localDateStr(new Date(new Date(wStart + 'T00:00:00').getTime() + 6 * 86400000));
+    return docs.filter(d => { const dt = d.data().date; return dt >= wStart && dt <= wEnd; }).length;
+  })();
+
+  const map = {
+    workouts_5:    [Math.min(total, 5),        5,    'אימונים'],
+    workouts_10:   [Math.min(total, 10),       10,   'אימונים'],
+    workouts_25:   [Math.min(total, 25),       25,   'אימונים'],
+    workouts_50:   [Math.min(total, 50),       50,   'אימונים'],
+    workouts_100:  [Math.min(total, 100),      100,  'אימונים'],
+    workouts_200:  [Math.min(total, 200),      200,  'אימונים'],
+    workouts_365:  [Math.min(total, 365),      365,  'אימונים'],
+    workouts_500:  [Math.min(total, 500),      500,  'אימונים'],
+    workouts_1000: [Math.min(total, 1000),     1000, 'אימונים'],
+    streak_3:      [Math.min(streak, 3),       3,    'ימים ברצף'],
+    streak_7:      [Math.min(streak, 7),       7,    'ימים ברצף'],
+    streak_14:     [Math.min(streak, 14),      14,   'ימים ברצף'],
+    streak_30:     [Math.min(streak, 30),      30,   'ימים ברצף'],
+    streak_60:     [Math.min(streak, 60),      60,   'ימים ברצף'],
+    streak_100:    [Math.min(streak, 100),     100,  'ימים ברצף'],
+    variety_3:     [Math.min(uniqueTypes, 3),  3,    'סוגי אימון'],
+    variety_5:     [Math.min(uniqueTypes, 5),  5,    'סוגי אימון'],
+    variety_all:   [Math.min(uniqueTypes, 8),  8,    'סוגי אימון'],
+    same_type_10:  [Math.min(maxType, 10),     10,   'מאותו סוג'],
+    same_type_50:  [Math.min(maxType, 50),     50,   'מאותו סוג'],
+    total_10h:     [Math.min(totalHours, 10),  10,   'שעות'],
+    total_50h:     [Math.min(totalHours, 50),  50,   'שעות'],
+    total_100h:    [Math.min(totalHours, 100), 100,  'שעות'],
+    total_500h:    [Math.min(totalHours, 500), 500,  'שעות'],
+    gym_20:        [Math.min(tc['gym']        || 0, 20),  20,  'חדר כושר'],
+    gym_100:       [Math.min(tc['gym']        || 0, 100), 100, 'חדר כושר'],
+    run_20:        [Math.min(tc['run']        || 0, 20),  20,  'ריצות'],
+    run_50:        [Math.min(tc['run']        || 0, 50),  50,  'ריצות'],
+    swim_10:       [Math.min(tc['swim']       || 0, 10),  10,  'שחיות'],
+    swim_30:       [Math.min(tc['swim']       || 0, 30),  30,  'שחיות'],
+    bball_10:      [Math.min(tc['basketball'] || 0, 10),  10,  'כדורסל'],
+    tennis_10:     [Math.min(tc['tennis']     || 0, 10),  10,  'טניס'],
+    padel_10:      [Math.min(tc['padel']      || 0, 10),  10,  'פאדל'],
+    treadmill_20:  [Math.min(tc['treadmill']  || 0, 20),  20,  'הליכון'],
+    gym_rat:       [Math.min(tc['gym']        || 0, 50),  50,  'חדר כושר'],
+    photos_5:      [Math.min(withPhotos, 5),  5,   'תמונות'],
+    photos_20:     [Math.min(withPhotos, 20), 20,  'תמונות'],
+    mood_writer:   [Math.min(withDesc, 10),   10,  'עם תיאור'],
+    good_mood:     [Math.min(withMood, 5),    5,   'עם הרגשה'],
+    friends_5:     [Math.min(friendCount, 5), 5,   'חברים'],
+    friends_10:    [Math.min(friendCount, 10),10,  'חברים'],
+    ach_25:        [Math.min(badgeCount, 25), 25,  'הישגים'],
+    ach_50:        [Math.min(badgeCount, 50), 50,  'הישגים'],
+    legend:        [Math.min(badgeCount,100), 100, 'הישגים'],
+    '5_in_week':   [Math.min(thisWeek, 5),    5,   'השבוע'],
+    '7_in_week':   [Math.min(thisWeek, 7),    7,   'השבוע'],
+    monthly_goal:  [Math.min(docs.filter(d => d.data().monthKey === monthKey()).length, goal), goal, 'החודש'],
+    weekly_goal_1: [Math.min(weeklyGoalHits(), 1),  1,  'שבועות יעד'],
+    weekly_goal_4: [Math.min(weeklyGoalHits(), 4),  4,  'שבועות יעד'],
+    weekly_goal_10:[Math.min(weeklyGoalHits(), 10), 10, 'שבועות יעד'],
+    weekly_goal_20:[Math.min(weeklyGoalHits(), 20), 20, 'שבועות יעד'],
+    weekly_goal_52:[Math.min(weeklyGoalHits(), 52), 52, 'שבועות יעד'],
+  };
+  const entry = map[key];
+  if (!entry) return null;
+  const [current, target, unit] = entry;
+  const displayCurrent = Number.isInteger(current) ? current : current.toFixed(1);
+  return { current, target, label: `${displayCurrent}/${target} ${unit}` };
+}
 
 // ══ FIREBASE ═════════════════════════════════════════════════════════════
 firebase.initializeApp(firebaseConfig);
@@ -1826,12 +1917,13 @@ function filterAchievements(cat) {
   let list = ACHIEVEMENTS;
   if (cat === 'earned') list = list.filter(a => earned.has(a.key));
   else if (cat !== 'all') list = list.filter(a => a.cat === cat);
-  // Sort: earned first, then by rarity
+  // Earned first (by rarity desc), locked sorted by tier asc (easiest first)
   const rarityOrder = { legendary: 0, epic: 1, rare: 2, common: 3 };
   list = [...list].sort((a, b) => {
     const ae = earned.has(a.key), be = earned.has(b.key);
     if (ae !== be) return ae ? -1 : 1;
-    return (rarityOrder[a.rarity] || 3) - (rarityOrder[b.rarity] || 3);
+    if (ae && be) return (rarityOrder[a.rarity] || 3) - (rarityOrder[b.rarity] || 3);
+    return (a.tier || 5) - (b.tier || 5);
   });
 
   const grid = document.getElementById('achievements-grid');
@@ -1840,12 +1932,24 @@ function filterAchievements(cat) {
     const isEarned = earned.has(a.key);
     const rc = ACH_RARITY_COLOR[a.rarity] || ACH_RARITY_COLOR.common;
     const rarityLabel = { common: 'נפוץ', rare: 'נדיר', epic: 'אפי', legendary: 'אגדי' }[a.rarity] || '';
+    let progressHtml = '';
+    if (!isEarned) {
+      const prog = getAchievementProgress(a.key);
+      if (prog && prog.target > 0 && prog.current > 0) {
+        const pct = Math.min(100, Math.round((prog.current / prog.target) * 100));
+        progressHtml = `<div class="ach-progress-wrap">
+          <div class="ach-progress-bar"><div class="ach-progress-fill" style="width:${pct}%"></div></div>
+          <div class="ach-progress-text">${prog.label}</div>
+        </div>`;
+      }
+    }
     return `<div class="ach-card ${isEarned ? 'earned' : 'locked'}" style="background:${rc.bg};border:1px solid ${rc.border};${isEarned ? `box-shadow:${rc.glow}` : ''}">
       <div class="ach-emoji">${a.emoji}</div>
       <div class="ach-info">
         <div class="ach-name" style="color:${isEarned ? rc.text : 'var(--text-2)'}">${a.label}</div>
         <div class="ach-desc">${isEarned ? a.desc : '🔒 ' + a.desc}</div>
         <span class="ach-rarity" style="color:${rc.text}">${rarityLabel}</span>
+        ${progressHtml}
       </div>
     </div>`;
   }).join('');

@@ -763,13 +763,17 @@ textarea.form-input { resize: none; }
   border-radius: var(--r-l); padding: 14px; display: flex; gap: 12px; align-items: flex-start;
   transition: transform .15s;
 }
-.ach-card.locked { opacity: .32; filter: grayscale(.6); }
+.ach-card.locked { opacity: .5; filter: grayscale(.5); }
 .ach-card.earned { animation: fadeUp .3s ease both; }
 .ach-emoji { font-size: 32px; line-height: 1; flex-shrink: 0; }
 .ach-info { flex: 1; min-width: 0; }
 .ach-name { font-size: 13px; font-weight: 800; line-height: 1.2; margin-bottom: 3px; }
 .ach-desc { font-size: 11px; color: var(--text-3); line-height: 1.4; }
 .ach-rarity { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .5px; margin-top: 5px; display: block; }
+.ach-progress-wrap { margin-top: 7px; }
+.ach-progress-bar { height: 4px; background: rgba(255,255,255,.1); border-radius: 2px; overflow: hidden; }
+.ach-progress-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--primary), var(--secondary)); transition: width .4s ease; }
+.ach-progress-text { font-size: 10px; color: var(--text-3); margin-top: 3px; }
 /* Settings mini-badges kept small */
 .badges-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; padding: 16px; }
 .badge-item { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 10px 4px; border-radius: var(--r-m); }
