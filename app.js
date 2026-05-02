@@ -282,6 +282,15 @@ let homeLbExpanded       = false;
 let _calMonth = 0, _calYear = 2024, _calSelectedDate = '';
 const commentListeners   = {};
 
+// ── FX prefs (sounds, haptics, animations) ──
+const DEFAULT_FX_PREFS = { soundsEnabled: true, hapticsEnabled: true, animationsEnabled: true };
+let fxPrefs = null;
+
+function updateFxPrefs() {
+  window._fxPrefs = fxPrefs || DEFAULT_FX_PREFS;
+  document.body.classList.toggle('no-anim', !(window._fxPrefs.animationsEnabled ?? true));
+}
+
 // ── Notifications state ──
 const DEFAULT_NOTIF_PREFS = {
   master: true,
@@ -371,6 +380,39 @@ function launchConfetti() {
   draw();
 }
 
+// ── Achievement modal ────────────────────────────────────────────────────
+let _achQueue    = [];
+let _achAutoClose = null;
+
+function showAchModal(a) {
+  playSound('achievement_unlocked');
+  triggerHaptic('achievement');
+  const overlay = document.getElementById('ach-modal');
+  if (!overlay) return;
+  document.getElementById('ach-modal-emoji').textContent = a.emoji;
+  document.getElementById('ach-modal-title').textContent = a.label;
+  document.getElementById('ach-modal-desc').textContent  = a.desc;
+  const wrap = document.getElementById('ach-modal-sparkles-wrap');
+  if (wrap) {
+    wrap.innerHTML = Array.from({ length: 8 }, (_, i) => {
+      const angle = (i / 8) * 360;
+      const x = 50 + Math.cos(angle * Math.PI / 180) * 38;
+      const y = 22 + Math.sin(angle * Math.PI / 180) * 22;
+      return `<span class="ach-sparkle" style="left:${x}%;top:${y}%;animation-delay:${i * 0.18}s">✦</span>`;
+    }).join('');
+  }
+  overlay.classList.add('show');
+  clearTimeout(_achAutoClose);
+  _achAutoClose = setTimeout(closeAchModal, 3500);
+}
+
+function closeAchModal() {
+  clearTimeout(_achAutoClose);
+  const overlay = document.getElementById('ach-modal');
+  if (overlay) overlay.classList.remove('show');
+  if (_achQueue.length) setTimeout(() => showAchModal(_achQueue.shift()), 380);
+}
+
 function addRipple(e) {
   const btn  = e.currentTarget;
   const rect = btn.getBoundingClientRect();
@@ -454,6 +496,8 @@ function moveNavIndicator(tab) {
 
 function switchTab(tab) {
   if (tab === currentTab) return;
+  playSound('tab_switch');
+  triggerHaptic('light');
   currentTab = tab;
 
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -479,6 +523,7 @@ function toast(msg, type = '') {
   const el = document.getElementById('toast');
   el.textContent = msg;
   el.className = type ? `show ${type}` : 'show';
+  if (type === 'error') { playSound('error'); triggerHaptic('light'); }
   clearTimeout(_toastTimer);
   _toastTimer = setTimeout(() => { el.className = ''; }, 3500);
 }
@@ -1095,6 +1140,7 @@ async function submitWorkout(skipPhotoCheck = false) {
       } else {
         toast('האימון נרשם! 💪', 'success');
       }
+      playSound('workout_saved'); triggerHaptic('success'); launchConfetti();
     }
     // Notify friends about new workout (not on edits)
     if (!editingWorkoutId) {
@@ -2015,6 +2061,7 @@ async function toggleLike(wid, btn) {
   btn.style.animation = 'none'; btn.offsetHeight;
   btn.style.animation = 'likeHeartbeat .4s ease';
   if (countEl) countEl.textContent = Math.max(0, (parseInt(countEl.textContent) || 0) + delta);
+  if (!liked) { playSound('like'); triggerHaptic('medium'); }
   try {
     await db.collection('workouts').doc(wid).update({
       likedBy: liked
@@ -2092,6 +2139,7 @@ async function addComment(wid) {
   const text  = input?.value.trim();
   if (!text) return;
   input.value = '';
+  playSound('comment_sent'); triggerHaptic('light');
   try {
     await db.collection('comments').add({
       workoutId: wid, userId: currentUser.uid,
@@ -2225,18 +2273,16 @@ function renderLeaderboard(sorted, names, photoUrls = {}) {
 }
 
 // ══ COLLAPSIBLE NOTIF SECTION ════════════════════════════════════════════
-function toggleNotifSection(btn) {
-  const panel   = document.getElementById('notif-section-panel');
+function _toggleCollapsible(btn, panelId) {
+  const panel   = document.getElementById(panelId);
   const chevron = btn.querySelector('.chevron-icon');
+  if (!panel) return;
   const isOpen  = panel.style.maxHeight && panel.style.maxHeight !== '0px';
-  if (isOpen) {
-    panel.style.maxHeight = '0';
-    chevron.style.transform = '';
-  } else {
-    panel.style.maxHeight = panel.scrollHeight + 'px';
-    chevron.style.transform = 'rotate(180deg)';
-  }
+  panel.style.maxHeight     = isOpen ? '0' : panel.scrollHeight + 'px';
+  chevron.style.transform   = isOpen ? '' : 'rotate(180deg)';
 }
+function toggleNotifSection(btn) { _toggleCollapsible(btn, 'notif-section-panel'); }
+function toggleFxSection(btn)    { _toggleCollapsible(btn, 'fx-section-panel'); }
 
 // ══ FRIENDS ══════════════════════════════════════════════════════════════
 async function autoFriendNewUser(newUid) {
@@ -2612,10 +2658,10 @@ async function checkAchievements(allDocs) {
   const updated = [...Array.from(badges), ...toAdd];
   userProfile.badges = updated;
   try { await db.collection('users').doc(currentUser.uid).update({ badges: updated }); } catch {}
-  toAdd.forEach((key, i) => {
+  toAdd.forEach((key) => {
     const a = ACHIEVEMENTS.find(x => x.key === key);
     if (a) {
-      setTimeout(() => toast(`🏅 הישג חדש! ${a.emoji} ${a.label}`, 'success'), 900 + i * 700);
+      _achQueue.push(a);
       if (isNotifEnabled('newAchievement')) {
         pushNotification(currentUser.uid, {
           type: 'newAchievement',
@@ -2626,6 +2672,7 @@ async function checkAchievements(allDocs) {
       }
     }
   });
+  if (_achQueue.length) setTimeout(() => showAchModal(_achQueue.shift()), 900);
 }
 
 let achFilter = 'all';
@@ -3007,6 +3054,17 @@ function renderProfile() {
         </div>
       </div>
     </div>
+    <div class="profile-section">
+      <button class="collapsible-header" onclick="toggleFxSection(this)">
+        <span class="section-title" style="margin:0">אפקטים</span>
+        <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div id="fx-section-panel" style="max-height:0;overflow:hidden;transition:max-height .2s ease">
+        <div class="settings-card">
+          ${fxSettingsHtml(fxPrefs || DEFAULT_FX_PREFS)}
+        </div>
+      </div>
+    </div>
     <button class="btn-danger btn-full" onclick="doSignOut()" style="margin-top:8px">התנתק</button>
   `;
   renderBadges(p.badges);
@@ -3123,6 +3181,42 @@ async function saveNotifPref(key, value) {
       .collection('preferences').doc('notifications')
       .set({ [key]: value }, { merge: true });
   } catch {}
+}
+
+function loadFxPrefs() {
+  try {
+    const raw = localStorage.getItem(`gam-fx-${currentUser.uid}`);
+    fxPrefs = raw ? { ...DEFAULT_FX_PREFS, ...JSON.parse(raw) } : { ...DEFAULT_FX_PREFS };
+  } catch { fxPrefs = { ...DEFAULT_FX_PREFS }; }
+  updateFxPrefs();
+}
+
+async function saveFxPref(key, value) {
+  if (!fxPrefs) fxPrefs = { ...DEFAULT_FX_PREFS };
+  fxPrefs[key] = value;
+  updateFxPrefs();
+  try { localStorage.setItem(`gam-fx-${currentUser.uid}`, JSON.stringify(fxPrefs)); } catch {}
+}
+
+function fxSettingsHtml(prefs) {
+  const row = (key, label, sub) => `
+    <div class="settings-row" style="border-top:1px solid var(--border)">
+      <div><div class="settings-label">${label}</div><div class="settings-sub">${sub}</div></div>
+      <label class="toggle">
+        <input type="checkbox" ${prefs[key] !== false ? 'checked' : ''} onchange="saveFxPref('${key}',this.checked)">
+        <span class="toggle-track"></span>
+      </label>
+    </div>`;
+  return `
+    <div class="settings-row">
+      <div><div class="settings-label">צלילי ממשק</div><div class="settings-sub">צלילים עדינים על אינטראקציות</div></div>
+      <label class="toggle">
+        <input type="checkbox" ${prefs.soundsEnabled !== false ? 'checked' : ''} onchange="saveFxPref('soundsEnabled',this.checked)">
+        <span class="toggle-track"></span>
+      </label>
+    </div>
+    ${row('hapticsEnabled',   'רטט / Haptic',   'משוב מישושי על לחיצות')}
+    ${row('animationsEnabled','אנימציות',        'אפקטי מעבר וסלייד')}`;
 }
 
 // ══ NOTIFICATION DELIVERY ═════════════════════════════════════════════════
@@ -3274,6 +3368,7 @@ auth.onAuthStateChanged(async user => {
     await loadUserProfile();
     await migrateAllUsersToFriends();
     await loadNotifPrefs();
+    loadFxPrefs();
 
     setHeaderAvatar();
 
@@ -3298,7 +3393,8 @@ auth.onAuthStateChanged(async user => {
     Object.values(commentListeners).forEach(u => u());
     Object.keys(commentListeners).forEach(k => delete commentListeners[k]);
     currentUser = null; userProfile = { goal: 3, friendIds: [], badges: [] };
-    notifPrefs = null; _notifDocs = [];
+    notifPrefs = null; _notifDocs = []; fxPrefs = null; window._fxPrefs = { ...DEFAULT_FX_PREFS };
+    _achQueue = []; document.body.classList.remove('no-anim');
     reminderDismissed = false; cachedUserDocs = []; goalWasHit = false; currentTab = 'home'; viewingUserId = null;
     _noWorkoutNotifSent = false; _weeklyGoalNotifSent = false;
     feedAllDocs = []; feedOffset = 0; achFilter = 'all';
