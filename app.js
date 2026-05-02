@@ -1068,14 +1068,32 @@ async function loadHomeLb() {
       if (!latest[w.userId] || w.date > latest[w.userId]) latest[w.userId] = w.date;
     });
 
-    if (!counts[currentUser.uid]) {
+    // Always include current user
+    if (counts[currentUser.uid] === undefined) {
       counts[currentUser.uid] = 0;
       names[currentUser.uid]  = userProfile.name || currentUser.displayName || 'אתה';
       photos[currentUser.uid] = userProfile.photoUrl || '';
     }
 
+    // Always include every friend — fetch user docs for those with 0 workouts this week
+    const missingFriends = friendIds.filter(uid => counts[uid] === undefined);
+    if (missingFriends.length) {
+      const friendDocs = await Promise.all(
+        missingFriends.map(uid => db.collection('users').doc(uid).get())
+      );
+      friendDocs.forEach(d => {
+        const fd = d.exists ? d.data() : {};
+        counts[d.id] = 0;
+        names[d.id]  = fd.name || fd.displayName || 'משתמש';
+        photos[d.id] = fd.photoUrl || '';
+      });
+    }
+
     homeLbCache = Object.entries(counts)
-      .sort((a, b) => b[1] - a[1] || (latest[b[0]] || '').localeCompare(latest[a[0]] || ''))
+      .sort((a, b) =>
+        b[1] - a[1] ||
+        (latest[b[0]] || '').localeCompare(latest[a[0]] || '') ||
+        (names[a[0]] || '').localeCompare(names[b[0]] || ''))
       .map(([uid, cnt], i) => ({ uid, cnt, name: names[uid], photo: photos[uid] || '', rank: i + 1 }));
     homeLbCacheTime = Date.now();
 
