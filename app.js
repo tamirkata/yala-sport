@@ -288,7 +288,7 @@ const DEFAULT_NOTIF_PREFS = {
   noWorkoutTwoDays: true,
   friendLikedMyWorkout: true,
   friendCommentedMyWorkout: true,
-  newAchievement: true,
+  newAchievement: false,
   weeklyGoalReminder: true,
   storyReply: true,
 };
@@ -660,7 +660,7 @@ function avatarHtml(name, photoUrl, cls = 'lb-avatar', size = '') {
   const szStyle  = size ? `width:${size}px;height:${size}px;` : '';
   if (photoUrl) {
     return `<div class="${cls}" style="${szStyle}padding:0;overflow:hidden">` +
-           `<img src="${escHtml(photoUrl)}" alt="${initials}" ` +
+           `<img src="${escHtml(photoUrl)}" alt="${initials}" loading="lazy" ` +
            `style="width:100%;height:100%;object-fit:cover;display:block" ` +
            `onerror="this.parentElement.innerHTML='${initials}'">` +
            `</div>`;
@@ -730,14 +730,18 @@ function initScrollEffects() {
   const header  = document.getElementById('app-header');
   const hero    = document.getElementById('progress-card');
   if (!content) return;
+  let ticking = false;
   content.addEventListener('scroll', () => {
-    const y = content.scrollTop;
-    if (header) header.classList.toggle('scrolled', y > 10);
-    if (hero && currentTab === 'home') {
-      const scale = Math.max(.96, 1 - y * 0.00015);
-      hero.style.transform = `scale(${scale})`;
-      hero.style.transformOrigin = 'top center';
-    }
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(() => {
+      const y = content.scrollTop;
+      if (header) header.classList.toggle('scrolled', y > 10);
+      if (hero && currentTab === 'home') {
+        hero.style.transform = `scale(${Math.max(.96, 1 - y * 0.00015)})`;
+      }
+      ticking = false;
+    });
   }, { passive: true });
 }
 
@@ -2252,12 +2256,10 @@ async function migrateAllUsersToFriends() {
     const total    = allUids.length;
     if (total < 2) return;
 
-    console.log(`Starting global friends migration for ${total} users...`);
     const CHUNK = 400;
     for (let i = 0; i < allUids.length; i += CHUNK) {
       const batch = db.batch();
-      allUids.slice(i, i + CHUNK).forEach((uid, j) => {
-        console.log(`Migrating user ${i + j + 1} of ${total}...`);
+      allUids.slice(i, i + CHUNK).forEach((uid) => {
         batch.update(db.collection('users').doc(uid),
           { friendIds: allUids.filter(id => id !== uid) });
       });
@@ -2271,7 +2273,6 @@ async function migrateAllUsersToFriends() {
     });
 
     userProfile.friendIds = allUids.filter(id => id !== currentUser.uid);
-    console.log(`Migration complete: ${total} users are now all friends.`);
   } catch (e) { console.warn('migrateAllUsersToFriends failed', e); }
 }
 

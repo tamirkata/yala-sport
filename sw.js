@@ -1,5 +1,5 @@
 // ── Service Worker — יאלה ספורט ──
-const CACHE = 'yala-v24';
+const CACHE = 'yala-v25';
 const PRECACHE = ['./', './index.html', './app.js', './firebase-config.js', './manifest.json',
                   './design-system.css',
                   './icon.svg', './icon-192.png', './icon-512.png',
