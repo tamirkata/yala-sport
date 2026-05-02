@@ -1238,35 +1238,35 @@ function renderFeedItem(doc, idx = 0) {
   const likedBy  = w.likedBy || [];
   const liked    = likedBy.includes(currentUser?.uid);
   const tsStr    = w.createdAt ? timeAgo(w.createdAt) : fmtDate(w.date);
+  const thumb = w.photoUrl
+    ? `<div class="feed-thumb" onclick="event.stopPropagation();viewPhoto('${escHtml(w.photoUrl)}')" data-photo="${escHtml(w.photoUrl)}"><img src="${escHtml(w.photoUrl)}" alt="אימון" loading="lazy"></div>`
+    : `<div class="feed-thumb feed-thumb--emoji">${w.typeEmoji || '💪'}</div>`;
+  const midLine = `${w.typeEmoji || '💪'} ${escHtml(w.typeName || w.type)}${w.duration ? ` · ⏱ ${fmtDuration(w.duration)}` : ''}`;
   return `<div class="feed-item" style="animation-delay:${idx * 50}ms">
-    <div class="feed-header">
-      ${avatarHtml(w.userName || '?', w.userPhotoUrl || '', 'lb-avatar', '36')}
-      <div class="feed-meta">
-        <div class="feed-username">${escHtml(w.userName || 'משתמש')}${isMe ? ' <span class="feed-me-tag">אני</span>' : ''}</div>
-        ${w.userUsername ? `<div class="feed-user-at">@${escHtml(w.userUsername)}</div>` : ''}
-        <div class="feed-date">${tsStr}</div>
+    <div class="feed-row">
+      <div class="feed-info">
+        <div class="feed-name-row">
+          <span class="feed-username">${escHtml(w.userName || 'משתמש')}</span>
+          ${isMe ? '<span class="feed-me-tag">אני</span>' : ''}
+          ${isMe ? `<span class="feed-edit-btns">
+            <button class="feed-icon-btn" onclick="event.stopPropagation();editWorkout('${wid}')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+            <button class="feed-icon-btn" onclick="event.stopPropagation();confirmDeleteWorkout('${wid}')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
+          </span>` : ''}
+        </div>
+        <div class="feed-mid-line">${midLine}</div>
+        <div class="feed-bot-line">
+          <span class="feed-date">${tsStr}</span>
+          <button class="like-btn${liked ? ' liked' : ''}" id="like-btn-${wid}" data-owner="${escHtml(w.userId || '')}" onclick="event.stopPropagation();toggleLike('${wid}', this)">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            <span id="like-count-${wid}">${likedBy.length}</span>
+          </button>
+          <button class="feed-comment-btn" id="comment-toggle-${wid}" onclick="event.stopPropagation();toggleComments('${wid}')">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <span id="comment-count-${wid}">···</span>
+          </button>
+        </div>
       </div>
-      ${isMe ? `<div class="feed-actions-right">
-        <button class="feed-icon-btn" onclick="editWorkout('${wid}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
-        <button class="feed-icon-btn" onclick="confirmDeleteWorkout('${wid}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
-      </div>` : ''}
-    </div>
-    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px">
-      <span class="feed-pill">${w.typeEmoji || '💪'} ${escHtml(w.typeName || w.type)}</span>
-      ${w.duration ? `<span class="feed-duration">⏱ ${fmtDuration(w.duration)}</span>` : ''}
-    </div>
-    ${w.mood  ? `<div class="feed-notes" style="font-style:italic;color:var(--text-2)">💬 ${escHtml(w.mood)}</div>` : ''}
-    ${w.notes ? `<div class="feed-notes">${escHtml(w.notes)}</div>` : ''}
-    ${w.photoUrl ? `<div class="feed-photo${w.isBranded ? ' feed-photo--branded' : ''}" data-photo="${escHtml(w.photoUrl)}" onclick="viewPhoto(this.dataset.photo)"><img src="${escHtml(w.photoUrl)}" alt="אימון" loading="lazy"></div>` : ''}
-    <div class="feed-actions">
-      <button class="like-btn${liked ? ' liked' : ''}" id="like-btn-${wid}" data-owner="${escHtml(w.userId || '')}" onclick="toggleLike('${wid}', this)">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-        <span id="like-count-${wid}">${likedBy.length}</span>
-      </button>
-      <button class="feed-comment-btn" id="comment-toggle-${wid}" onclick="toggleComments('${wid}')">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        <span id="comment-count-${wid}">···</span>
-      </button>
+      ${thumb}
     </div>
     <div class="comments-section hidden" id="comments-section-${wid}">
       <div id="comments-list-${wid}"></div>
