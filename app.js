@@ -568,6 +568,81 @@ async function compressImage(file, maxDimPx, maxKB) {
   });
 }
 
+// Produces a branded 1080×1080 JPEG: center-cropped photo + gradient overlay + workout text
+async function brandWorkoutImage(file, meta) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const SIZE = 1080;
+      const canvas = document.createElement('canvas');
+      canvas.width = SIZE; canvas.height = SIZE;
+      const ctx = canvas.getContext('2d');
+
+      // Center-crop to 1:1
+      const sw = img.naturalWidth, sh = img.naturalHeight;
+      const minDim = Math.min(sw, sh);
+      const sx = (sw - minDim) / 2, sy = (sh - minDim) / 2;
+      ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, SIZE, SIZE);
+
+      // Dark gradient over bottom half
+      const grad = ctx.createLinearGradient(0, SIZE * 0.45, 0, SIZE);
+      grad.addColorStop(0, 'rgba(0,0,0,0)');
+      grad.addColorStop(1, 'rgba(0,0,0,0.75)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, SIZE, SIZE);
+
+      ctx.textAlign = 'right';
+      ctx.direction = 'rtl';
+      ctx.fillStyle = '#ffffff';
+      const rx = SIZE - 40;
+      const shadow = () => { ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = 8; };
+      const noShadow = () => { ctx.shadowBlur = 0; };
+
+      // Watermark — top right
+      ctx.globalAlpha = 0.6;
+      ctx.font = 'bold 26px Heebo, Arial, sans-serif';
+      shadow();
+      ctx.fillText('💪 יאלה ספורט', rx, 54);
+      noShadow();
+      ctx.globalAlpha = 1;
+
+      // Workout type
+      ctx.font = 'bold 58px Heebo, Arial, sans-serif';
+      shadow();
+      ctx.fillText(`${meta.typeEmoji || '💪'} ${meta.typeName || ''}`.trim(), rx, SIZE - 120);
+      noShadow();
+
+      // Duration (optional)
+      if (meta.duration) {
+        ctx.font = '600 38px Heebo, Arial, sans-serif';
+        shadow();
+        ctx.fillText(fmtDuration(meta.duration), rx, SIZE - 68);
+        noShadow();
+      }
+
+      // Date
+      const dateStr = meta.date ? meta.date.split('-').reverse().join('.') : '';
+      if (dateStr) {
+        ctx.globalAlpha = 0.8;
+        ctx.font = '400 28px Heebo, Arial, sans-serif';
+        shadow();
+        ctx.fillText(dateStr, rx, SIZE - 30);
+        noShadow();
+        ctx.globalAlpha = 1;
+      }
+
+      canvas.toBlob(blob => {
+        if (!blob) { reject(new Error('branding failed')); return; }
+        resolve(new File([blob], 'branded.jpg', { type: 'image/jpeg' }));
+      }, 'image/jpeg', 0.92);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('image load failed')); };
+    img.src = url;
+  });
+}
+
 // ══ AVATAR HELPERS ═══════════════════════════════════════════════════════
 // Returns HTML for an avatar: photo <img> when available, initials otherwise
 function avatarHtml(name, photoUrl, cls = 'lb-avatar', size = '') {
@@ -822,11 +897,13 @@ function clearWorkoutPhoto() {
   if (inp) inp.value = '';
 }
 
-async function uploadWorkoutPhoto(file) {
+async function uploadWorkoutPhoto(file, meta = null) {
   if (!file) return null;
   try {
-    const compressed = await compressImage(file, 1080, 500);
-    return await uploadToCloudinary(compressed, `yala-sport/workouts/${currentUser.uid}`);
+    const toUpload = meta
+      ? await brandWorkoutImage(file, meta)
+      : await compressImage(file, 1080, 500);
+    return await uploadToCloudinary(toUpload, `yala-sport/workouts/${currentUser.uid}`);
   } catch (err) {
     console.error('Workout photo upload failed:', err);
     toast(`שגיאה בהעלאת תמונה: ${err.message || String(err)}`, 'error');
@@ -867,18 +944,23 @@ async function submitWorkout() {
   const btn      = document.getElementById('submit-workout-btn');
   btn.disabled = true; btn.textContent = 'שומר...';
   try {
+    const workoutMeta = { typeEmoji: t.emoji, typeName: t.label, date: dateVal, duration };
     if (editingWorkoutId) {
       let photoUrl = undefined;
       if (_pendingPhotoFile) {
-        btn.textContent = 'מעלה תמונה...';
-        photoUrl = await uploadWorkoutPhoto(_pendingPhotoFile);
+        btn.textContent = 'מעצב תמונה...';
+        photoUrl = await uploadWorkoutPhoto(_pendingPhotoFile, workoutMeta);
       }
       const upd = {
         type: selectedType, typeEmoji: t.emoji, typeName: t.label,
         date: dateVal, weekKey: dateToWeekKey(dateVal),
         monthKey: dateVal.slice(0, 7), notes: notes || null, mood: mood || null, duration,
       };
-      if (photoUrl !== undefined) upd.photoUrl = photoUrl;
+      if (photoUrl !== undefined) {
+        upd.photoUrl  = photoUrl;
+        upd.isBranded = true;
+        upd.brandedAt = firebase.firestore.FieldValue.serverTimestamp();
+      }
       await db.collection('workouts').doc(editingWorkoutId).update(upd);
       toast('האימון עודכן ✓', 'success');
     } else {
@@ -893,10 +975,10 @@ async function submitWorkout() {
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       });
       if (_pendingPhotoFile) {
-        btn.textContent = 'מעלה תמונה...';
-        const photoUrl = await uploadWorkoutPhoto(_pendingPhotoFile);
+        btn.textContent = 'מעצב תמונה...';
+        const photoUrl = await uploadWorkoutPhoto(_pendingPhotoFile, workoutMeta);
         if (photoUrl) {
-          await docRef.update({ photoUrl });
+          await docRef.update({ photoUrl, isBranded: true, brandedAt: firebase.firestore.FieldValue.serverTimestamp() });
           toast('האימון נרשם עם תמונה! 📸', 'success');
         } else {
           toast('האימון נרשם, אבל התמונה לא הועלתה ⚠️', '');
@@ -1172,7 +1254,7 @@ function renderFeedItem(doc, idx = 0) {
     </div>
     ${w.mood  ? `<div class="feed-notes" style="font-style:italic;color:var(--text-2)">💬 ${escHtml(w.mood)}</div>` : ''}
     ${w.notes ? `<div class="feed-notes">${escHtml(w.notes)}</div>` : ''}
-    ${w.photoUrl ? `<div class="feed-photo" data-photo="${escHtml(w.photoUrl)}" onclick="viewPhoto(this.dataset.photo)"><img src="${escHtml(w.photoUrl)}" alt="אימון" loading="lazy"></div>` : ''}
+    ${w.photoUrl ? `<div class="feed-photo${w.isBranded ? ' feed-photo--branded' : ''}" data-photo="${escHtml(w.photoUrl)}" onclick="viewPhoto(this.dataset.photo)"><img src="${escHtml(w.photoUrl)}" alt="אימון" loading="lazy"></div>` : ''}
     <div class="feed-actions">
       <button class="like-btn${liked ? ' liked' : ''}" id="like-btn-${wid}" data-owner="${escHtml(w.userId || '')}" onclick="toggleLike('${wid}', this)">
         💪 <span id="like-count-${wid}">${likedBy.length}</span>
@@ -2132,6 +2214,34 @@ function notifSettingsHtml(prefs) {
   </div>`;
 }
 
+function renderWorkoutGrid() {
+  const el = document.getElementById('workout-grid');
+  if (!el) return;
+  const docs = (cachedUserDocs || []).slice().sort((a, b) => {
+    const ta = a.data().createdAt?.toMillis?.() || new Date(a.data().date + 'T12:00:00').getTime();
+    const tb = b.data().createdAt?.toMillis?.() || new Date(b.data().date + 'T12:00:00').getTime();
+    return tb - ta;
+  });
+  if (!docs.length) {
+    el.innerHTML = `<div style="grid-column:1/-1;padding:32px;text-align:center;color:var(--text-3);font-size:14px">עוד אין אימונים 💪</div>`;
+    return;
+  }
+  el.innerHTML = docs.map(doc => {
+    const w   = doc.data();
+    const wid = doc.id;
+    if (w.photoUrl) {
+      return `<div class="workout-grid-cell" onclick="editWorkout('${wid}')">
+        <img src="${escHtml(w.photoUrl)}" alt="${escHtml(w.typeName || '')}" loading="lazy">
+      </div>`;
+    }
+    return `<div class="workout-grid-cell workout-grid-cell--placeholder" onclick="editWorkout('${wid}')">
+      <div class="workout-grid-type">${w.typeEmoji || '💪'}</div>
+      <div class="workout-grid-meta">${escHtml(w.typeName || w.type || '')}</div>
+      <div class="workout-grid-date">${fmtDate(w.date)}</div>
+    </div>`;
+  }).join('');
+}
+
 function renderProfile() {
   if (!currentUser) return;
   const p        = userProfile;
@@ -2199,6 +2309,10 @@ function renderProfile() {
       <div class="profile-stat"><div class="profile-stat-num">${bestStreak}</div><div class="profile-stat-label">רצף שיא</div></div>
       <div class="profile-stat"><div class="profile-stat-num">${hours}</div><div class="profile-stat-label">שעות</div></div>
     </div>
+    <div class="profile-section">
+      <div class="workout-grid-header">⊞</div>
+      <div class="workout-grid" id="workout-grid"></div>
+    </div>
     ${nutHtml}
     ${bodyHtml}
     <div class="profile-section">
@@ -2229,6 +2343,7 @@ function renderProfile() {
     <button class="btn-danger btn-full" onclick="doSignOut()" style="margin-top:8px">התנתק</button>
   `;
   renderBadges(p.badges);
+  renderWorkoutGrid();
   initRipples();
 }
 
