@@ -1286,8 +1286,9 @@ function viewPhoto(url) {
 // ══ STORIES ══════════════════════════════════════════════════════════════
 const seenStories = new Set(JSON.parse(localStorage.getItem('seenStories') || '[]'));
 let storyDocs = [], storyIndex = 0, storyTimer = null;
-let storyPaused = false, storyRemaining = 5000, storyStartTime = 0;
+let storyPaused = false, storyRemaining = 10000, storyStartTime = 0;
 let storyPointerStartX = 0, storyPointerStartY = 0, storyLongPressTimer = null;
+let storyViewersDragging = false;
 
 async function loadStories() {
   const el = document.getElementById('stories-scroll');
@@ -1337,11 +1338,11 @@ function openStory(idx) {
 }
 
 function showStoryAt(idx) {
-  if (idx < 0) return;
+  if (idx < 0) { closeStory(); return; }
   if (idx >= storyDocs.length) { closeStory(); return; }
   storyIndex   = idx;
   storyPaused  = false;
-  storyRemaining = 5000;
+  storyRemaining = 10000;
 
   const doc = storyDocs[idx];
   const w   = doc.data();
@@ -1375,11 +1376,11 @@ function showStoryAt(idx) {
   const fill = document.getElementById('story-progress-fill');
   fill.style.animation = 'none';
   fill.offsetHeight;
-  fill.style.animation = 'story-progress 5s linear forwards';
+  fill.style.animation = 'story-progress 10s linear forwards';
 
   if (storyTimer) clearTimeout(storyTimer);
   storyStartTime = Date.now();
-  storyTimer = setTimeout(() => showStoryAt(storyIndex + 1), 5000);
+  storyTimer = setTimeout(() => showStoryAt(storyIndex + 1), 10000);
 
   if (!isOwn) recordStoryView(doc.id);
 
@@ -1422,18 +1423,23 @@ function onStoryPointerDown(e) {
   }, 180);
 }
 
-function onStoryPointerUp(e) {
+function onStoryPointerMove(e) {
+  if (storyViewersDragging) return;
   const dy = storyPointerStartY - e.clientY;
   const dx = Math.abs(e.clientX - storyPointerStartX);
-
-  // Swipe up → viewer sheet (own stories only)
-  if (dy > 60 && dx < 60) {
+  // Upward drag past threshold → open viewers immediately, before finger release
+  if (dy >= 50 && dx < 60) {
+    storyViewersDragging = true;
     clearTimeout(storyLongPressTimer);
     storyLongPressTimer = null;
     pauseStory();
     openStoryViewers();
-    return;
   }
+}
+
+function onStoryPointerUp(e) {
+  // Swipe was already handled in pointermove
+  if (storyViewersDragging) { storyViewersDragging = false; return; }
 
   // Let interactive controls handle themselves
   if (e.target.closest('.story-close, .story-views-row, .story-top')) {
@@ -1443,7 +1449,7 @@ function onStoryPointerUp(e) {
   }
 
   if (storyLongPressTimer) {
-    // Short tap → navigate
+    // Short tap → RTL navigate (right = older, left = newer/close)
     clearTimeout(storyLongPressTimer);
     storyLongPressTimer = null;
     if (e.clientX < window.innerWidth / 2) showStoryAt(storyIndex - 1);
@@ -1455,8 +1461,12 @@ function onStoryPointerUp(e) {
 }
 
 function onStoryPointerCancel() {
+  storyViewersDragging = false;
   clearTimeout(storyLongPressTimer);
   storyLongPressTimer = null;
+  // Don't resume if viewers sheet is still visible
+  const sheet = document.getElementById('story-viewers-sheet');
+  if (sheet && !sheet.classList.contains('hidden')) return;
   if (storyPaused) resumeStory();
 }
 
@@ -1473,6 +1483,7 @@ async function recordStoryView(docId) {
 }
 
 async function openStoryViewers() {
+  pauseStory();
   if (storyIndex >= storyDocs.length) return;
   const w = storyDocs[storyIndex].data();
   if (w.userId !== currentUser.uid) return;
@@ -1546,6 +1557,7 @@ function closeStoryViewers() {
 }
 
 function closeStory() {
+  storyViewersDragging = false;
   if (storyLongPressTimer) { clearTimeout(storyLongPressTimer); storyLongPressTimer = null; }
   if (storyTimer)          { clearTimeout(storyTimer); storyTimer = null; }
   storyPaused = false;
