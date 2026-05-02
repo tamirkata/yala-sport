@@ -530,9 +530,22 @@ textarea.form-input { resize: none; }
 }
 .comment-body { flex: 1; background: var(--bg-3); border-radius: var(--r-s); padding: 8px 10px; }
 .comment-author { font-size: 12px; font-weight: 800; margin-bottom: 2px; }
-.comment-text { font-size: 13px; color: var(--text-2); }
+.comment-text { font-size: 13px; color: var(--text-2); line-height: 1.4; }
 .comment-input-row { display: flex; gap: 8px; margin-top: 10px; align-items: center; }
 .comment-input-row .form-input { padding: 9px 12px; }
+
+/* ── Tappable user handles ───────────────────────────────────────────── */
+.u-link { cursor: pointer; }
+.u-link:active { opacity: .65; transform: scale(.97); }
+.mention-link { color: var(--primary); cursor: pointer; font-weight: 600; }
+.mention-link:active { opacity: .65; }
+.feed-user-avatar {
+  width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
+  background: var(--bg-3); color: var(--text-2);
+  border: 1px solid var(--border);
+  font-size: 11px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
 
 /* ══ LEADERBOARD ════════════════════════════════════════════════════════ */
 .period-toggle {

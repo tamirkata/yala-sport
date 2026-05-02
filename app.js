@@ -1539,6 +1539,25 @@ function fmtDuration(mins) {
   return `${m} דק׳`;
 }
 
+// ── Profile navigation helpers ───────────────────────────────────────────
+function navigateToProfile(uid) {
+  if (!uid) return;
+  uid === currentUser?.uid ? switchTab('settings') : openFriendProfile(uid);
+}
+
+async function navigateToUsername(username) {
+  try {
+    const snap = await db.collection('usernames').doc(username).get();
+    if (!snap.exists) { toast('המשתמש לא נמצא', 'error'); return; }
+    navigateToProfile(snap.data().uid);
+  } catch { toast('שגיאה', 'error'); }
+}
+
+function renderMentions(escapedText) {
+  return escapedText.replace(/@(\w+)/g,
+    (_, u) => `<span class="mention-link" onclick="event.stopPropagation();navigateToUsername('${u}')">@${u}</span>`);
+}
+
 function renderFeedItem(doc, idx = 0) {
   const w        = doc.data();
   const wid      = doc.id;
@@ -1550,11 +1569,13 @@ function renderFeedItem(doc, idx = 0) {
     ? `<div class="feed-thumb" onclick="event.stopPropagation();viewPhoto('${escHtml(w.photoUrl)}')" data-photo="${escHtml(w.photoUrl)}"><img src="${escHtml(w.photoUrl)}" alt="אימון" loading="lazy"></div>`
     : `<div class="feed-thumb feed-thumb--emoji">${w.typeEmoji || '💪'}</div>`;
   const midLine = `${w.typeEmoji || '💪'} ${escHtml(w.typeName || w.type)}${w.duration ? ` · ⏱ ${fmtDuration(w.duration)}` : ''}`;
+  const profileClick = `event.stopPropagation();navigateToProfile('${escHtml(w.userId || '')}')`;
   return `<div class="feed-item" style="animation-delay:${idx * 50}ms">
     <div class="feed-row">
+      <div class="u-link" onclick="${profileClick}" style="flex-shrink:0">${avatarHtml(w.userName || '?', w.userPhotoUrl || '', 'feed-user-avatar')}</div>
       <div class="feed-info">
         <div class="feed-name-row">
-          <span class="feed-username">${escHtml(w.userName || 'משתמש')}</span>
+          <span class="feed-username u-link" onclick="${profileClick}">${escHtml(w.userName || 'משתמש')}</span>
           ${isMe ? '<span class="feed-me-tag">אני</span>' : ''}
           ${isMe ? `<span class="feed-edit-btns">
             <button class="feed-icon-btn" onclick="event.stopPropagation();editWorkout('${wid}')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
@@ -1626,7 +1647,7 @@ async function loadStories() {
       const seen = seenStories.has(doc.id);
       const ts   = w.createdAt || null;
       const ago  = storyTimeAgoShort(ts);
-      return `<div class="story-item" onclick="openStory(${i})">
+      return `<div class="story-item" onclick="openStory(${i})" oncontextmenu="event.preventDefault();navigateToProfile('${escHtml(w.userId || '')}')">
         <div class="story-ring${seen ? ' seen' : ''}">
           ${w.userPhotoUrl
             ? `<img class="story-avatar-img" src="${escHtml(w.userPhotoUrl)}" alt="">`
@@ -1661,11 +1682,14 @@ function showStoryAt(idx) {
 
   document.getElementById('story-img').src = w.photoUrl;
 
+  const _storyUid = w.userId || '';
   document.getElementById('story-user-info').innerHTML = `
-    ${avatarHtml(w.userName || '?', w.userPhotoUrl || '', 'lb-avatar', '36')}
-    <div style="margin-right:8px">
-      <div class="story-user-name">${escHtml(w.userName || 'משתמש')}${w.userUsername ? ` <span style="font-size:11px;font-weight:500;opacity:.7">@${escHtml(w.userUsername)}</span>` : ''}</div>
-      <div class="story-time">${w.createdAt ? timeAgo(w.createdAt) : fmtDate(w.date)}</div>
+    <div class="u-link" onclick="pauseStory();closeStory();navigateToProfile('${escHtml(_storyUid)}')" style="display:flex;align-items:center;gap:8px">
+      ${avatarHtml(w.userName || '?', w.userPhotoUrl || '', 'lb-avatar', '36')}
+      <div>
+        <div class="story-user-name">${escHtml(w.userName || 'משתמש')}${w.userUsername ? ` <span style="font-size:11px;font-weight:500;opacity:.7">@${escHtml(w.userUsername)}</span>` : ''}</div>
+        <div class="story-time">${w.createdAt ? timeAgo(w.createdAt) : fmtDate(w.date)}</div>
+      </div>
     </div>`;
 
   const cap   = document.getElementById('story-caption-bar');
@@ -1956,7 +1980,7 @@ async function _loadViewersData() {
       return 0;
     });
     list.innerHTML = friends.map(f => `
-      <div class="viewers-item">
+      <div class="viewers-item u-link" onclick="closeStoryViewers();navigateToProfile('${escHtml(f.uid)}')">
         ${avatarHtml(f.name, f.photo, 'lb-avatar', '44')}
         <div class="viewers-info">
           <div class="viewers-name">${escHtml(f.name)}</div>
@@ -2025,7 +2049,7 @@ async function sendStoryReply() {
         title: `${userProfile?.name || 'מישהו'} הגיב/ה על הסטורי שלך`,
         body:  msg,
         icon:  '↩️',
-        data:  { workoutId: doc.id },
+        data:  { workoutId: doc.id, fromUserId: currentUser.uid, fromUserPhoto: userProfile?.photoUrl || '' },
       });
     }
   } catch (err) { console.error('sendStoryReply:', err); }
@@ -2076,6 +2100,7 @@ async function toggleLike(wid, btn) {
           title: 'קיבלת לייק! 💪',
           body: `${userProfile.name || 'מישהו'} אהב את האימון שלך`,
           icon: '💪',
+          data: { fromUserId: currentUser.uid, fromUserPhoto: userProfile.photoUrl || '' },
         });
       }
     }
@@ -2122,11 +2147,12 @@ function subscribeComments(wid) {
       }
       listEl.innerHTML = docs.map(doc => {
         const c = doc.data();
+        const cpClick = `event.stopPropagation();navigateToProfile('${escHtml(c.userId || '')}')`;
         return `<div class="comment-item">
-          ${avatarHtml(c.userName || '?', c.userPhotoUrl || '', 'comment-avatar')}
+          <div class="u-link" onclick="${cpClick}" style="flex-shrink:0">${avatarHtml(c.userName || '?', c.userPhotoUrl || '', 'comment-avatar')}</div>
           <div class="comment-body">
-            <div class="comment-author">${escHtml(c.userName || 'משתמש')}${c.userUsername ? ` <span style="color:var(--text-3);font-weight:500;font-size:11px">@${escHtml(c.userUsername)}</span>` : ''}</div>
-            <div class="comment-text">${escHtml(c.text)}</div>
+            <div class="comment-author"><span class="u-link" onclick="${cpClick}">${escHtml(c.userName || 'משתמש')}</span>${c.userUsername ? ` <span style="color:var(--text-3);font-weight:500;font-size:11px;cursor:pointer" onclick="${cpClick}">@${escHtml(c.userUsername)}</span>` : ''}</div>
+            <div class="comment-text">${renderMentions(escHtml(c.text))}</div>
           </div>
         </div>`;
       }).join('');
@@ -2156,6 +2182,7 @@ async function addComment(wid) {
         title: 'תגובה חדשה על האימון שלך 💬',
         body: `${userProfile.name || 'מישהו'}: ${text.slice(0, 60)}`,
         icon: '💬',
+        data: { fromUserId: currentUser.uid, fromUserPhoto: userProfile.photoUrl || '' },
       });
     }
   } catch (err) {
@@ -3288,9 +3315,16 @@ function renderNotifPanel() {
     return;
   }
   list.innerHTML = _notifDocs.map(doc => {
-    const n = doc.data();
-    return `<div class="notif-item${n.read ? '' : ' unread'}" onclick="markNotifRead('${doc.id}')">
-      <div class="notif-item-icon">${escHtml(n.icon || '💪')}</div>
+    const n   = doc.data();
+    const fid = n.data?.fromUserId;
+    const onClick = fid
+      ? `markNotifRead('${doc.id}');document.getElementById('notif-panel').classList.remove('show');navigateToProfile('${escHtml(fid)}')`
+      : `markNotifRead('${doc.id}')`;
+    const iconHtml = (fid && n.data?.fromUserPhoto)
+      ? avatarHtml('?', n.data.fromUserPhoto, 'comment-avatar')
+      : `<div class="notif-item-icon">${escHtml(n.icon || '💪')}</div>`;
+    return `<div class="notif-item${n.read ? '' : ' unread'}${fid ? ' u-link' : ''}" onclick="${onClick}">
+      ${iconHtml}
       <div class="notif-item-body">
         <div class="notif-item-title">${escHtml(n.title)}</div>
         <div class="notif-item-sub">${escHtml(n.body)}</div>
