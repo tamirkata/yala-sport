@@ -583,13 +583,23 @@ function switchAuthTab(tab) {
 
 async function doLogin(e) {
   e.preventDefault();
-  const email    = document.getElementById('login-email').value.trim();
-  const password = document.getElementById('login-password').value;
-  const errEl    = document.getElementById('login-err');
-  const btn      = document.getElementById('login-btn');
+  const identifier = document.getElementById('login-identifier').value.trim();
+  const password   = document.getElementById('login-password').value;
+  const errEl      = document.getElementById('login-err');
+  const btn        = document.getElementById('login-btn');
   errEl.textContent = '';
   btn.textContent = 'נכנס...'; btn.disabled = true;
   try {
+    let email = identifier;
+    if (!identifier.includes('@')) {
+      const uDoc = await db.collection('usernames').doc(identifier.toLowerCase()).get();
+      if (!uDoc.exists) {
+        errEl.textContent = 'שם משתמש לא נמצא';
+        btn.disabled = false; btn.textContent = 'כניסה →';
+        return;
+      }
+      email = uDoc.data().email;
+    }
     await auth.signInWithEmailAndPassword(email, password);
   } catch (err) {
     errEl.textContent = authErr(err.code);
@@ -600,20 +610,36 @@ async function doLogin(e) {
 async function doRegister(e) {
   e.preventDefault();
   const name     = document.getElementById('reg-name').value.trim();
+  const username = document.getElementById('reg-username').value.trim().toLowerCase();
   const email    = document.getElementById('reg-email').value.trim();
   const password = document.getElementById('reg-password').value;
   const errEl    = document.getElementById('reg-err');
   const btn      = document.getElementById('reg-btn');
-  if (!name) { errEl.textContent = 'נא להזין שם'; return; }
+  if (!name)     { errEl.textContent = 'נא להזין שם'; return; }
+  if (!username) { errEl.textContent = 'נא להזין שם משתמש'; return; }
+  if (!/^[a-z0-9_]{3,20}$/.test(username)) {
+    errEl.textContent = 'שם משתמש: 3-20 תווים, אותיות לועזיות/מספרים/קו תחתון בלבד';
+    return;
+  }
   errEl.textContent = '';
-  btn.textContent = 'נרשם...'; btn.disabled = true;
+  btn.textContent = 'בודק...'; btn.disabled = true;
   try {
+    const unameDoc = await db.collection('usernames').doc(username).get();
+    if (unameDoc.exists) {
+      errEl.textContent = 'שם המשתמש תפוס — נסה שם אחר';
+      btn.disabled = false; btn.textContent = 'הרשמה →';
+      return;
+    }
+    btn.textContent = 'נרשם...';
     const cred = await auth.createUserWithEmailAndPassword(email, password);
     await cred.user.updateProfile({ displayName: name });
-    await db.collection('users').doc(cred.user.uid).set({
-      name, email, goal: 3, friendIds: [], badges: [],
+    const batch = db.batch();
+    batch.set(db.collection('users').doc(cred.user.uid), {
+      name, username, email, goal: 3, friendIds: [], badges: [],
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
+    batch.set(db.collection('usernames').doc(username), { uid: cred.user.uid, email });
+    await batch.commit();
   } catch (err) {
     errEl.textContent = authErr(err.code);
     btn.disabled = false; btn.textContent = 'הרשמה →';
@@ -749,7 +775,8 @@ async function submitWorkout() {
       toast('האימון עודכן ✓', 'success');
     } else {
       const docRef = await db.collection('workouts').add({
-        userId: currentUser.uid, userName: currentUser.displayName || '',
+        userId: currentUser.uid, userName: userProfile.name || currentUser.displayName || '',
+        userUsername: userProfile.username || '',
         userPhotoUrl: userProfile.photoUrl || '',
         type: selectedType, typeEmoji: t.emoji, typeName: t.label,
         date: dateVal, weekKey: dateToWeekKey(dateVal),
@@ -993,6 +1020,7 @@ function renderFeedItem(doc, idx = 0) {
       ${avatarHtml(w.userName || '?', w.userPhotoUrl || '', 'lb-avatar', '40')}
       <div class="feed-meta">
         <div class="feed-username">${escHtml(w.userName || 'משתמש')}${isMe ? ' <span class="feed-me-tag">אני</span>' : ''}</div>
+        ${w.userUsername ? `<div class="feed-user-at">@${escHtml(w.userUsername)}</div>` : ''}
         <div class="feed-date">${tsStr}</div>
       </div>
       ${isMe ? `<div class="feed-actions-right">
@@ -1102,7 +1130,7 @@ function showStoryAt(idx) {
   document.getElementById('story-user-info').innerHTML = `
     ${avatarHtml(w.userName || '?', w.userPhotoUrl || '', 'lb-avatar', '36')}
     <div style="margin-right:8px">
-      <div class="story-user-name">${escHtml(w.userName || 'משתמש')}</div>
+      <div class="story-user-name">${escHtml(w.userName || 'משתמש')}${w.userUsername ? ` <span style="font-size:11px;font-weight:500;opacity:.7">@${escHtml(w.userUsername)}</span>` : ''}</div>
       <div class="story-time">${w.createdAt ? timeAgo(w.createdAt) : fmtDate(w.date)}</div>
     </div>`;
 
@@ -1371,7 +1399,7 @@ function subscribeComments(wid) {
         return `<div class="comment-item">
           ${avatarHtml(c.userName || '?', c.userPhotoUrl || '', 'comment-avatar')}
           <div class="comment-body">
-            <div class="comment-author">${escHtml(c.userName || 'משתמש')}</div>
+            <div class="comment-author">${escHtml(c.userName || 'משתמש')}${c.userUsername ? ` <span style="color:var(--text-3);font-weight:500;font-size:11px">@${escHtml(c.userUsername)}</span>` : ''}</div>
             <div class="comment-text">${escHtml(c.text)}</div>
           </div>
         </div>`;
@@ -1388,7 +1416,8 @@ async function addComment(wid) {
   try {
     await db.collection('comments').add({
       workoutId: wid, userId: currentUser.uid,
-      userName: currentUser.displayName || '',
+      userName: userProfile.name || currentUser.displayName || '',
+      userUsername: userProfile.username || '',
       userPhotoUrl: userProfile.photoUrl || '',
       text,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -1836,22 +1865,246 @@ function renderBadges(badges) {
     : '<div style="padding:16px;color:var(--text-3);font-size:13px;text-align:center;grid-column:1/-1">טרם הושגו הישגים</div>';
 }
 
-// ══ SETTINGS ═════════════════════════════════════════════════════════════
-function renderSettings() {
-  if (!currentUser) return;
-  const name     = currentUser.displayName || 'ספורטאי';
-  const photoUrl = userProfile.photoUrl || currentUser.photoURL || '';
-  document.getElementById('settings-name').textContent  = name;
-  document.getElementById('settings-email').textContent = currentUser.email;
-  const avatarEl = document.getElementById('settings-avatar');
-  if (photoUrl) {
-    avatarEl.innerHTML = `<img src="${escHtml(photoUrl)}" alt="${escHtml(avatarOf(name))}" style="width:100%;height:100%;object-fit:cover;display:block;border-radius:50%" onerror="this.parentElement.textContent='${escHtml(avatarOf(name))}'">`;
-  } else {
-    avatarEl.textContent = avatarOf(name);
+// ══ PROFILE HELPERS ══════════════════════════════════════════════════════
+function goalLabel(k) {
+  return { lose:'ירידה במשקל', muscle:'בניית שריר', fitness:'שיפור כושר', maintain:'שמירה על משקל' }[k] || k;
+}
+function activityLabel(k) {
+  return { sedentary:'יושבני', lightly:'פעיל קל', active:'פעיל', very:'פעיל מאוד' }[k] || k;
+}
+
+function computeStreaks(docs) {
+  const dates = [...new Set(docs.map(d => d.data().date))].sort().reverse();
+  if (!dates.length) return { current: 0, best: 0 };
+  const today     = localDateStr(new Date());
+  const yesterday = localDateStr(new Date(Date.now() - 86400000));
+  let current = 0, prev = null;
+  for (const d of dates) {
+    if (!prev) {
+      if (d !== today && d !== yesterday) break;
+      current = 1; prev = d;
+    } else {
+      if (Math.round((new Date(prev+'T00:00:00') - new Date(d+'T00:00:00')) / 86400000) === 1) { current++; prev = d; } else break;
+    }
   }
-  document.getElementById('goal-display').textContent = userProfile.goal || 3;
-  renderBadges(userProfile.badges);
+  let best = 0, streak = 0; prev = null;
+  for (const d of [...dates].reverse()) {
+    if (!prev) { streak = 1; prev = d; }
+    else {
+      if (Math.round((new Date(d+'T00:00:00') - new Date(prev+'T00:00:00')) / 86400000) === 1) streak++;
+      else { best = Math.max(best, streak); streak = 1; }
+      prev = d;
+    }
+  }
+  return { current, best: Math.max(best, streak) };
+}
+
+function calcNutrition(p) {
+  const w = parseFloat(p.weight), h = parseFloat(p.height), a = parseFloat(p.age);
+  if (!w || !h || !a) return null;
+  const bmr  = p.gender === 'נקבה' ? 10*w + 6.25*h - 5*a - 161 : 10*w + 6.25*h - 5*a + 5;
+  const mult = { sedentary:1.2, lightly:1.375, active:1.55, very:1.725 }[p.activityLevel] || 1.375;
+  const cals = Math.round(bmr * mult * ({ lose:.85, muscle:1.10, fitness:1.0, maintain:1.0 }[p.fitnessGoal] || 1.0));
+  const protein = Math.round(({ lose:2.0, muscle:2.2, fitness:1.8, maintain:1.6 }[p.fitnessGoal] || 1.8) * w);
+  const fat     = Math.round((cals * ({ lose:.25, muscle:.25, fitness:.25, maintain:.30 }[p.fitnessGoal] || .25)) / 9);
+  const carbs   = Math.max(0, Math.round((cals - protein*4 - fat*9) / 4));
+  return { cals, protein, carbs, fat };
+}
+
+// ══ SETTINGS / PROFILE ═══════════════════════════════════════════════════
+function renderSettings() { renderProfile(); }
+
+function renderProfile() {
+  if (!currentUser) return;
+  const p        = userProfile;
+  const name     = p.name || currentUser.displayName || 'ספורטאי';
+  const username = p.username || '';
+  const photoUrl = p.photoUrl || currentUser.photoURL || '';
+  const goal     = p.goal || 3;
+  const docs     = cachedUserDocs || [];
+  const total    = docs.length;
+  const hours    = Math.round(docs.reduce((s, d) => s + (d.data().duration || 0), 0) / 60);
+  const { current: streak, best: bestStreak } = computeStreaks(docs);
+  const nut = calcNutrition(p);
+  const el  = document.getElementById('profile-content');
+  if (!el) return;
+
+  const avatarInner = photoUrl
+    ? `<img class="profile-avatar" src="${escHtml(photoUrl)}" alt="${escHtml(avatarOf(name))}">`
+    : `<div class="profile-avatar-init">${escHtml(avatarOf(name))}</div>`;
+
+  const nutHtml = nut ? `
+    <div class="nutrition-card">
+      <div class="nutrition-title">🥗 המלצות תזונה יומיות</div>
+      <div class="nutrition-subtitle">מחושב לפי נתוני הגוף שלך · ${goalLabel(p.fitnessGoal)}</div>
+      <div class="nut-cals">${nut.cals} <span>קלוריות ביום</span></div>
+      <div class="macros-grid">
+        <div><div class="macro-val">${nut.protein}g</div><div class="macro-label">חלבון</div><div class="macro-bar-wrap"><div class="macro-bar macro-protein" style="width:${Math.min(100,Math.round(nut.protein*4*100/nut.cals))}%"></div></div></div>
+        <div><div class="macro-val">${nut.carbs}g</div><div class="macro-label">פחמימות</div><div class="macro-bar-wrap"><div class="macro-bar macro-carbs" style="width:${Math.min(100,Math.round(nut.carbs*4*100/nut.cals))}%"></div></div></div>
+        <div><div class="macro-val">${nut.fat}g</div><div class="macro-label">שומן</div><div class="macro-bar-wrap"><div class="macro-bar macro-fat" style="width:${Math.min(100,Math.round(nut.fat*9*100/nut.cals))}%"></div></div></div>
+      </div>
+    </div>` : `
+    <div class="nutrition-empty-card" onclick="openEditProfile()">
+      <div style="font-size:32px;margin-bottom:8px">🥗</div>
+      <div style="font-weight:700;margin-bottom:4px">חשב המלצות תזונה</div>
+      <div style="font-size:12px;color:var(--text-3)">הוסף גובה, משקל וגיל לחישוב קלוריות ומאקרו יומי</div>
+    </div>`;
+
+  const bodyHtml = (p.weight || p.height || p.age || p.goalWeight) ? `
+    <div class="profile-section">
+      <div class="section-title">נתוני גוף</div>
+      <div class="body-grid">
+        ${p.weight     ? `<div class="body-item"><div class="body-val">${p.weight}</div><div class="body-lbl">משקל ק"ג</div></div>` : ''}
+        ${p.goalWeight ? `<div class="body-item"><div class="body-val">${p.goalWeight}</div><div class="body-lbl">יעד ק"ג</div></div>` : ''}
+        ${p.height     ? `<div class="body-item"><div class="body-val">${p.height}</div><div class="body-lbl">גובה ס"מ</div></div>` : ''}
+        ${p.age        ? `<div class="body-item"><div class="body-val">${p.age}</div><div class="body-lbl">גיל</div></div>` : ''}
+      </div>
+    </div>` : '';
+
+  el.innerHTML = `
+    <div class="profile-header">
+      <div class="profile-avatar-wrap" onclick="document.getElementById('photo-upload-input').click()">
+        ${avatarInner}<div class="profile-avatar-edit">📷</div>
+      </div>
+      <input type="file" id="photo-upload-input" accept="image/*" style="display:none"
+             onchange="if(this.files[0]) uploadProfilePhoto(this.files[0])">
+      <div class="profile-header-info">
+        <div class="profile-name">${escHtml(name)}</div>
+        <div class="profile-username">${username ? '@'+escHtml(username) : '<span style="color:var(--text-3)">הוסף שם משתמש ←</span>'}</div>
+        <div class="profile-email">${escHtml(currentUser.email)}</div>
+      </div>
+      <button class="profile-edit-btn" onclick="openEditProfile()">✏️ עריכה</button>
+    </div>
+    <div class="profile-stats-grid">
+      <div class="profile-stat"><div class="profile-stat-num">${total}</div><div class="profile-stat-label">אימונים</div></div>
+      <div class="profile-stat"><div class="profile-stat-num">${streak}🔥</div><div class="profile-stat-label">רצף נוכחי</div></div>
+      <div class="profile-stat"><div class="profile-stat-num">${bestStreak}</div><div class="profile-stat-label">רצף שיא</div></div>
+      <div class="profile-stat"><div class="profile-stat-num">${hours}</div><div class="profile-stat-label">שעות</div></div>
+    </div>
+    ${nutHtml}
+    ${bodyHtml}
+    <div class="profile-section">
+      <div class="section-title">יעדי כושר</div>
+      <div class="settings-card">
+        ${p.fitnessGoal   ? `<div class="settings-row"><div class="settings-label">מטרה</div><div class="settings-sub">${goalLabel(p.fitnessGoal)}</div></div>` : ''}
+        ${p.activityLevel ? `<div class="settings-row" style="border-top:1px solid var(--border)"><div class="settings-label">רמת פעילות</div><div class="settings-sub">${activityLabel(p.activityLevel)}</div></div>` : ''}
+        <div class="settings-row" style="${p.fitnessGoal||p.activityLevel ? 'border-top:1px solid var(--border)' : ''}">
+          <div><div class="settings-label">יעד שבועי</div><div class="settings-sub">אימונים בשבוע</div></div>
+          <div class="goal-control">
+            <button class="goal-btn" onclick="changeGoal(-1)">−</button>
+            <div class="goal-num" id="goal-display">${goal}</div>
+            <button class="goal-btn" onclick="changeGoal(1)">+</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="profile-section">
+      <div class="section-title">הישגים</div>
+      <div class="settings-card"><div class="badges-grid" id="badges-grid"></div></div>
+    </div>
+    <div class="profile-section">
+      <div class="section-title">התראות</div>
+      <div class="settings-card">
+        <div class="settings-row">
+          <div><div class="settings-label">תזכורות אימון</div><div class="settings-sub">קבל התראה אם לא התאמנת 2 ימים</div></div>
+          <label class="toggle">
+            <input type="checkbox" id="notif-toggle" ${p.notifications ? 'checked' : ''} onchange="toggleNotifications(this.checked)">
+            <span class="toggle-track"></span>
+          </label>
+        </div>
+      </div>
+    </div>
+    <button class="btn-danger btn-full" onclick="doSignOut()" style="margin-top:8px">התנתק</button>
+  `;
+  renderBadges(p.badges);
   initRipples();
+}
+
+let _editGender = 'זכר', _editFitnessGoal = 'fitness';
+
+function openEditProfile() {
+  const p = userProfile;
+  document.getElementById('edit-name').value        = p.name || currentUser.displayName || '';
+  document.getElementById('edit-username').value    = p.username || '';
+  document.getElementById('edit-age').value         = p.age || '';
+  document.getElementById('edit-height').value      = p.height || '';
+  document.getElementById('edit-weight').value      = p.weight || '';
+  document.getElementById('edit-goal-weight').value = p.goalWeight || '';
+  document.getElementById('edit-activity').value    = p.activityLevel || 'lightly';
+  _editGender      = p.gender || 'זכר';
+  _editFitnessGoal = p.fitnessGoal || 'fitness';
+  selectGender(_editGender);
+  selectFitnessGoal(_editFitnessGoal);
+  document.getElementById('edit-profile-err').textContent = '';
+  document.getElementById('edit-profile-modal').classList.remove('hidden');
+}
+
+function closeEditProfile() {
+  document.getElementById('edit-profile-modal').classList.add('hidden');
+}
+
+function onEditProfileBackdrop(e) {
+  if (e.target.id === 'edit-profile-modal') closeEditProfile();
+}
+
+function selectGender(g) {
+  _editGender = g;
+  document.getElementById('gender-male').classList.toggle('active', g === 'זכר');
+  document.getElementById('gender-female').classList.toggle('active', g === 'נקבה');
+}
+
+function selectFitnessGoal(val) {
+  _editFitnessGoal = val;
+  document.querySelectorAll('.goal-option-btn').forEach(b => b.classList.toggle('active', b.dataset.val === val));
+}
+
+async function saveProfileEdits() {
+  const name       = document.getElementById('edit-name').value.trim();
+  const username   = document.getElementById('edit-username').value.trim().toLowerCase();
+  const age        = parseInt(document.getElementById('edit-age').value)         || null;
+  const height     = parseFloat(document.getElementById('edit-height').value)     || null;
+  const weight     = parseFloat(document.getElementById('edit-weight').value)     || null;
+  const goalWeight = parseFloat(document.getElementById('edit-goal-weight').value) || null;
+  const activityLevel = document.getElementById('edit-activity').value;
+  const errEl      = document.getElementById('edit-profile-err');
+  const btn        = document.getElementById('edit-profile-save-btn');
+  if (!name)     { errEl.textContent = 'נא להזין שם'; return; }
+  if (!username) { errEl.textContent = 'נא להזין שם משתמש'; return; }
+  if (!/^[a-z0-9_]{3,20}$/.test(username)) { errEl.textContent = 'שם משתמש לא תקין'; return; }
+  errEl.textContent = '';
+  btn.textContent = 'שומר...'; btn.disabled = true;
+  try {
+    const oldUsername = userProfile.username || '';
+    if (username !== oldUsername) {
+      const snap = await db.collection('usernames').doc(username).get();
+      if (snap.exists) { errEl.textContent = 'שם המשתמש תפוס'; btn.disabled = false; btn.textContent = 'שמור'; return; }
+    }
+    const updates = {
+      name, username, gender: _editGender, fitnessGoal: _editFitnessGoal, activityLevel,
+      ...(age        != null && { age }),
+      ...(height     != null && { height }),
+      ...(weight     != null && { weight }),
+      ...(goalWeight != null && { goalWeight }),
+    };
+    const batch = db.batch();
+    batch.update(db.collection('users').doc(currentUser.uid), updates);
+    if (username !== oldUsername) {
+      batch.set(db.collection('usernames').doc(username), { uid: currentUser.uid, email: currentUser.email });
+      if (oldUsername) batch.delete(db.collection('usernames').doc(oldUsername));
+    }
+    await batch.commit();
+    await currentUser.updateProfile({ displayName: name });
+    Object.assign(userProfile, updates);
+    closeEditProfile();
+    renderProfile();
+    setHeaderAvatar();
+    toast('הפרופיל עודכן! ✓', 'success');
+  } catch (err) {
+    console.error('saveProfileEdits:', err);
+    errEl.textContent = 'שגיאה בשמירה';
+  } finally {
+    btn.disabled = false; btn.textContent = 'שמור';
+  }
 }
 
 async function changeGoal(delta) {

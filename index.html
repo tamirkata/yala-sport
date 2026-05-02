@@ -655,6 +655,84 @@ textarea.form-input { resize: none; }
 .viewers-check { font-size: 16px; color: #4ade80; font-weight: 800; flex-shrink: 0; }
 .viewers-loading, .viewers-empty { padding: 20px; color: var(--text-3); text-align: center; font-size: 14px; }
 
+/* ══ PROFILE PAGE ═══════════════════════════════════════════════════════ */
+.profile-header {
+  display: flex; align-items: center; gap: 14px;
+  background: var(--bg-card); border-radius: var(--r-xl);
+  padding: 20px; margin-bottom: 16px; position: relative;
+}
+.profile-avatar-wrap { position: relative; flex-shrink: 0; cursor: pointer; width: 72px; height: 72px; }
+.profile-avatar { width: 72px; height: 72px; border-radius: 50%; object-fit: cover; border: 3px solid var(--primary); display: block; }
+.profile-avatar-init {
+  width: 72px; height: 72px; border-radius: 50%;
+  background: var(--grad); display: flex; align-items: center; justify-content: center;
+  font-size: 28px; font-weight: 900; color: #fff;
+}
+.profile-avatar-edit {
+  position: absolute; bottom: 0; right: 0;
+  background: var(--bg-card); border-radius: 50%; width: 22px; height: 22px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; border: 2px solid var(--bg);
+}
+.profile-header-info { flex: 1; min-width: 0; }
+.profile-name { font-size: 18px; font-weight: 800; }
+.profile-username { font-size: 13px; color: var(--primary); font-weight: 600; margin-top: 2px; }
+.profile-email { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+.profile-edit-btn {
+  position: absolute; top: 16px; left: 16px;
+  background: var(--bg-3); border: 1px solid var(--border); border-radius: var(--r-m);
+  padding: 6px 12px; font-size: 12px; font-weight: 700; color: var(--text-2); cursor: pointer;
+}
+.profile-stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px; }
+.profile-stat { background: var(--bg-card); border-radius: var(--r-m); padding: 14px 8px; text-align: center; }
+.profile-stat-num { font-size: 22px; font-weight: 900; color: var(--primary); }
+.profile-stat-label { font-size: 10px; color: var(--text-3); margin-top: 2px; }
+.nutrition-card {
+  background: radial-gradient(ellipse at 20% 0%, rgba(255,107,53,.18), transparent 60%), var(--bg-card);
+  border: 1px solid rgba(255,107,53,.2); border-radius: var(--r-xl); padding: 20px; margin-bottom: 16px;
+}
+.nutrition-title { font-size: 16px; font-weight: 800; margin-bottom: 2px; }
+.nutrition-subtitle { font-size: 11px; color: var(--text-3); margin-bottom: 16px; }
+.nut-cals { font-size: 36px; font-weight: 900; color: var(--primary); margin-bottom: 16px; }
+.nut-cals span { font-size: 14px; font-weight: 600; color: var(--text-2); }
+.macros-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.macro-val { font-size: 18px; font-weight: 800; }
+.macro-label { font-size: 11px; color: var(--text-3); margin-bottom: 6px; }
+.macro-bar-wrap { height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+.macro-bar { height: 100%; border-radius: 2px; }
+.macro-protein { background: #60A5FA; }
+.macro-carbs   { background: #4ade80; }
+.macro-fat     { background: #FBBF24; }
+.nutrition-empty-card {
+  background: var(--bg-card); border: 1.5px dashed var(--border); border-radius: var(--r-xl);
+  padding: 24px; margin-bottom: 16px; text-align: center; cursor: pointer; color: var(--text-2);
+}
+.body-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.body-item { background: var(--bg-3); border-radius: var(--r-m); padding: 14px; text-align: center; }
+.body-val { font-size: 22px; font-weight: 800; }
+.body-lbl { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+.profile-section { margin-bottom: 16px; }
+.feed-user-at { font-size: 11px; color: var(--text-3); margin-top: 1px; }
+/* Edit profile modal */
+.edit-group { margin-bottom: 14px; }
+.edit-label { display: block; font-size: 12px; font-weight: 700; color: var(--text-2); margin-bottom: 6px; }
+.edit-hint { font-size: 11px; color: var(--text-3); margin-top: 4px; }
+.edit-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+.gender-row { display: flex; gap: 8px; }
+.gender-btn {
+  flex: 1; padding: 10px; border-radius: var(--r-m);
+  background: var(--bg-3); border: 1px solid var(--border);
+  font-size: 14px; font-weight: 700; color: var(--text-2); cursor: pointer;
+}
+.gender-btn.active { background: rgba(255,107,53,.15); border-color: var(--primary); color: var(--primary); }
+.goal-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.goal-option-btn {
+  padding: 10px; border-radius: var(--r-m);
+  background: var(--bg-3); border: 1px solid var(--border);
+  font-size: 12px; font-weight: 700; color: var(--text-2); cursor: pointer;
+}
+.goal-option-btn.active { background: rgba(255,107,53,.15); border-color: var(--primary); color: var(--primary); }
+
 /* ══ FEED PHOTO ══════════════════════════════════════════════════════════ */
 .feed-photo { margin: 8px -4px; border-radius: var(--r-m); overflow: hidden; max-height: 320px; cursor: pointer; }
 .feed-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -801,13 +879,14 @@ textarea.form-input { resize: none; }
       <button class="auth-tab" id="tab-reg-btn" onclick="switchAuthTab('register')">הרשמה</button>
     </div>
     <form class="auth-form" id="login-form" onsubmit="doLogin(event)">
-      <input class="form-input" type="email" id="login-email" placeholder="כתובת מייל" dir="ltr" autocomplete="email" required>
+      <input class="form-input" type="text" id="login-identifier" placeholder="מייל או שם משתמש" dir="ltr" autocomplete="username email" required>
       <input class="form-input" type="password" id="login-password" placeholder="סיסמה" dir="ltr" autocomplete="current-password" required>
       <div class="err-msg" id="login-err"></div>
       <button class="btn-primary btn-full" type="submit" id="login-btn">כניסה →</button>
     </form>
     <form class="auth-form hidden" id="register-form" onsubmit="doRegister(event)">
       <input class="form-input" type="text" id="reg-name" placeholder="שם מלא" autocomplete="name" required>
+      <input class="form-input" type="text" id="reg-username" placeholder="שם משתמש (username)" dir="ltr" autocomplete="username" required minlength="3" maxlength="20">
       <input class="form-input" type="email" id="reg-email" placeholder="כתובת מייל" dir="ltr" autocomplete="email" required>
       <input class="form-input" type="password" id="reg-password" placeholder="סיסמה (לפחות 6 תווים)" dir="ltr" autocomplete="new-password" required minlength="6">
       <div class="err-msg" id="reg-err"></div>
@@ -961,67 +1040,9 @@ textarea.form-input { resize: none; }
       <div class="ach-grid" id="achievements-grid"></div>
     </div>
 
-    <!-- SETTINGS -->
+    <!-- SETTINGS / PROFILE -->
     <div class="view" id="view-settings">
-      <div class="settings-section">
-        <div class="section-title">הפרופיל שלי</div>
-        <div class="settings-card">
-          <div class="settings-row">
-            <div>
-              <div class="settings-label" id="settings-name">—</div>
-              <div class="settings-sub" id="settings-email">—</div>
-              <div class="settings-sub" style="margin-top:4px;color:var(--primary);font-size:11px">לחץ על התמונה לשינוי</div>
-            </div>
-            <div class="settings-avatar-wrap" id="settings-avatar-wrap"
-                 onclick="document.getElementById('photo-upload-input').click()">
-              <div class="avatar" id="settings-avatar">?</div>
-              <div class="avatar-edit-overlay">📷</div>
-            </div>
-            <input type="file" id="photo-upload-input" accept="image/*" style="display:none"
-                   onchange="if(this.files[0]) uploadProfilePhoto(this.files[0])">
-          </div>
-        </div>
-      </div>
-      <div class="settings-section">
-        <div class="section-title">הישגים</div>
-        <div class="settings-card">
-          <div class="badges-grid" id="badges-grid"></div>
-        </div>
-      </div>
-      <div class="settings-section">
-        <div class="section-title">יעד שבועי</div>
-        <div class="settings-card">
-          <div class="settings-row">
-            <div>
-              <div class="settings-label">אימונים בשבוע</div>
-              <div class="settings-sub">כמה אימונים תרצה לעשות כל שבוע?</div>
-            </div>
-            <div class="goal-control">
-              <button class="goal-btn" onclick="changeGoal(-1)">−</button>
-              <div class="goal-num" id="goal-display">3</div>
-              <button class="goal-btn" onclick="changeGoal(1)">+</button>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="settings-section">
-        <div class="section-title">התראות</div>
-        <div class="settings-card">
-          <div class="settings-row">
-            <div>
-              <div class="settings-label">תזכורות אימון</div>
-              <div class="settings-sub">קבל התראה אם לא התאמנת 2 ימים</div>
-            </div>
-            <label class="toggle">
-              <input type="checkbox" id="notif-toggle" onchange="toggleNotifications(this.checked)">
-              <span class="toggle-track"></span>
-            </label>
-          </div>
-        </div>
-      </div>
-      <button class="btn-danger btn-full" onclick="doSignOut()" style="margin-top:8px">
-        התנתק
-      </button>
+      <div id="profile-content"></div>
     </div>
 
   </div><!-- /app-content -->
@@ -1046,7 +1067,7 @@ textarea.form-input { resize: none; }
       <span class="nav-icon">🏅</span><span>הישגים</span>
     </div>
     <div class="nav-item" id="nav-settings" onclick="switchTab('settings')">
-      <span class="nav-icon">⚙️</span><span>הגדרות</span>
+      <span class="nav-icon">👤</span><span>פרופיל</span>
     </div>
   </nav>
 
@@ -1108,6 +1129,70 @@ textarea.form-input { resize: none; }
     </div>
     <button class="btn-primary btn-full" id="submit-workout-btn" onclick="submitWorkout()">שמור אימון ✓</button>
     <button class="btn-danger btn-full hidden" id="delete-workout-btn" onclick="confirmDeleteWorkout()" style="margin-top:10px">מחק אימון 🗑️</button>
+  </div>
+</div>
+
+<!-- EDIT PROFILE MODAL -->
+<div class="modal-overlay hidden" id="edit-profile-modal" onclick="onEditProfileBackdrop(event)">
+  <div class="modal-sheet" style="max-height:90vh;overflow-y:auto">
+    <div class="modal-handle"></div>
+    <div class="modal-title">עריכת פרופיל</div>
+    <div class="edit-group">
+      <label class="edit-label">שם מלא</label>
+      <input class="form-input" type="text" id="edit-name" placeholder="שם מלא" autocomplete="name">
+    </div>
+    <div class="edit-group">
+      <label class="edit-label">שם משתמש</label>
+      <input class="form-input" type="text" id="edit-username" placeholder="username" dir="ltr" autocomplete="username">
+      <div class="edit-hint">3-20 תווים: אותיות לועזיות, מספרים, קו תחתון</div>
+    </div>
+    <div class="edit-group">
+      <label class="edit-label">מגדר</label>
+      <div class="gender-row">
+        <button type="button" class="gender-btn" id="gender-male" onclick="selectGender('זכר')">זכר</button>
+        <button type="button" class="gender-btn" id="gender-female" onclick="selectGender('נקבה')">נקבה</button>
+      </div>
+    </div>
+    <div class="edit-row-2">
+      <div class="edit-group" style="margin-bottom:0">
+        <label class="edit-label">גיל</label>
+        <input class="form-input" type="number" id="edit-age" min="10" max="99" placeholder="גיל">
+      </div>
+      <div class="edit-group" style="margin-bottom:0">
+        <label class="edit-label">גובה ס"מ</label>
+        <input class="form-input" type="number" id="edit-height" min="100" max="250" placeholder="גובה">
+      </div>
+    </div>
+    <div class="edit-row-2" style="margin-top:14px">
+      <div class="edit-group" style="margin-bottom:0">
+        <label class="edit-label">משקל נוכחי ק"ג</label>
+        <input class="form-input" type="number" id="edit-weight" min="30" max="300" step="0.1" placeholder="משקל">
+      </div>
+      <div class="edit-group" style="margin-bottom:0">
+        <label class="edit-label">משקל יעד ק"ג</label>
+        <input class="form-input" type="number" id="edit-goal-weight" min="30" max="300" step="0.1" placeholder="יעד">
+      </div>
+    </div>
+    <div class="edit-group" style="margin-top:14px">
+      <label class="edit-label">רמת פעילות</label>
+      <select class="form-input" id="edit-activity">
+        <option value="sedentary">יושבני (עבודה משרדית, ללא ספורט)</option>
+        <option value="lightly">פעיל קל (ספורט 1-3 ימים בשבוע)</option>
+        <option value="active">פעיל (ספורט 3-5 ימים בשבוע)</option>
+        <option value="very">פעיל מאוד (ספורט 6-7 ימים בשבוע)</option>
+      </select>
+    </div>
+    <div class="edit-group">
+      <label class="edit-label">מטרת כושר</label>
+      <div class="goal-options">
+        <button type="button" class="goal-option-btn" data-val="lose" onclick="selectFitnessGoal('lose')">ירידה במשקל</button>
+        <button type="button" class="goal-option-btn" data-val="muscle" onclick="selectFitnessGoal('muscle')">בניית שריר</button>
+        <button type="button" class="goal-option-btn" data-val="fitness" onclick="selectFitnessGoal('fitness')">שיפור כושר</button>
+        <button type="button" class="goal-option-btn" data-val="maintain" onclick="selectFitnessGoal('maintain')">שמירה על משקל</button>
+      </div>
+    </div>
+    <div class="err-msg" id="edit-profile-err" style="margin-bottom:8px"></div>
+    <button class="btn-primary btn-full" id="edit-profile-save-btn" onclick="saveProfileEdits()">שמור</button>
   </div>
 </div>
 
