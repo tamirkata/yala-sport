@@ -2798,7 +2798,7 @@ async function renderFriendProfile(uid) {
         <div class="profile-avatar-wrap" style="cursor:default">${avatarInner}</div>
         <div class="profile-header-info">
           <div class="profile-name">${escHtml(name)}</div>
-          ${p.username ? `<div class="profile-username">@${escHtml(p.username)}</div>` : ''}
+          ${p.username ? `<div class="profile-username"><span dir="ltr">@${escHtml(p.username)}</span></div>` : ''}
         </div>
       </div>
       <div class="profile-stats-grid">
@@ -2941,7 +2941,9 @@ function renderProfile() {
              onchange="if(this.files[0]) uploadProfilePhoto(this.files[0])">
       <div class="profile-header-info">
         <div class="profile-name">${escHtml(name)}</div>
-        <div class="profile-username">${username ? '@'+escHtml(username) : '<span style="color:var(--text-3)">הוסף שם משתמש ←</span>'}</div>
+        <div class="profile-username">${username
+          ? `<span dir="ltr">@${escHtml(username)}</span>`
+          : `<span style="color:var(--text-3);direction:rtl;cursor:pointer" onclick="openEditProfile()">הגדר שם משתמש ←</span>`}</div>
         <div class="profile-email">${escHtml(currentUser.email)}</div>
       </div>
       <button class="profile-edit-btn" onclick="openEditProfile()">✏️ עריכה</button>
@@ -3000,7 +3002,7 @@ let _editGender = 'זכר', _editFitnessGoal = 'fitness';
 function openEditProfile() {
   const p = userProfile;
   document.getElementById('edit-name').value        = p.name || currentUser.displayName || '';
-  document.getElementById('edit-username-static').textContent = p.username ? '@' + p.username : '—';
+  document.getElementById('edit-username-static').textContent = p.username ? '🔒 @' + p.username : '—';
   document.getElementById('edit-age').value         = p.age || '';
   document.getElementById('edit-height').value      = p.height || '';
   document.getElementById('edit-weight').value      = p.weight || '';
