@@ -1066,22 +1066,12 @@ function syncFeedHeight() {
   if (!el || !wrap) return;
   const firstItem = el.querySelector('.feed-item');
   if (!firstItem) { el.style.maxHeight = ''; wrap.classList.remove('has-overflow'); return; }
-  // Two rAFs: first sets maxHeight, second reads the resulting layout
   requestAnimationFrame(() => {
     const itemH = firstItem.offsetHeight;
-    const gap   = parseInt(getComputedStyle(firstItem).marginBottom) || 10;
-    el.style.maxHeight = (itemH * 2 + gap) + 'px';
-    requestAnimationFrame(() => {
-      const overflow = el.scrollHeight > el.clientHeight + 1;
-      wrap.classList.toggle('has-overflow', overflow);
-      if (overflow && !el._scrollListenerAttached) {
-        el._scrollListenerAttached = true;
-        el.addEventListener('scroll', () => {
-          const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 4;
-          wrap.classList.toggle('has-overflow', !atBottom);
-        }, { passive: true });
-      }
-    });
+    const gap   = parseInt(getComputedStyle(firstItem).marginBottom) || 6;
+    // +4 accounts for the container's padding-bottom so item 2 isn't clipped
+    el.style.maxHeight = (itemH * 2 + gap + 4) + 'px';
+    wrap.classList.toggle('has-overflow', feedAllDocs.length > 2);
   });
 }
 

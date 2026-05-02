@@ -415,6 +415,7 @@ textarea.form-input { resize: none; }
   padding: 8px 12px; margin-bottom: 6px;
   backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
   animation: fadeUp .3s ease both;
+  scroll-snap-align: start;
 }
 .feed-header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
 .feed-meta { flex: 1; min-width: 0; }
@@ -480,6 +481,8 @@ textarea.form-input { resize: none; }
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
   scrollbar-color: rgba(255,255,255,.15) transparent;
+  scroll-snap-type: y mandatory;
+  padding-bottom: 4px;
 }
 #activity-feed::-webkit-scrollbar { width: 4px; }
 #activity-feed::-webkit-scrollbar-track { background: transparent; }
