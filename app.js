@@ -1105,10 +1105,10 @@ function renderProgressChart() {
         data,
         backgroundColor: data.map((v, i) =>
           i === data.length - 1
-            ? 'rgba(255,107,53,1)'
+            ? '#FF3B5C'
             : v >= (userProfile.goal || 3)
-              ? 'rgba(0,217,163,.7)'
-              : 'rgba(255,107,53,.45)'),
+              ? '#22C55E'
+              : 'rgba(255,59,92,.35)'),
         borderRadius: 6,
         borderSkipped: false,
       }],
@@ -1118,9 +1118,9 @@ function renderProgressChart() {
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: 'rgba(24,24,31,.95)',
-          borderColor: 'rgba(255,255,255,.1)', borderWidth: 1,
-          titleColor: 'rgba(255,255,255,.5)', bodyColor: '#fff',
+          backgroundColor: '#FFFFFF',
+          borderColor: '#EFEFEF', borderWidth: 1,
+          titleColor: '#737373', bodyColor: '#0A0A0A',
           padding: 10, cornerRadius: 10,
           callbacks: { label: ctx => ` ${ctx.raw} אימונים` },
         },
@@ -1128,13 +1128,13 @@ function renderProgressChart() {
       scales: {
         y: {
           beginAtZero: true, max: maxVal + 1,
-          ticks: { stepSize: 1, precision: 0, color: 'rgba(255,255,255,.3)', font: { size: 11 } },
-          grid: { color: 'rgba(255,255,255,.05)' },
+          ticks: { stepSize: 1, precision: 0, color: 'rgba(0,0,0,.3)', font: { size: 11 } },
+          grid: { color: 'rgba(0,0,0,.04)' },
           border: { color: 'transparent' },
         },
         x: {
           grid: { display: false },
-          ticks: { color: 'rgba(255,255,255,.35)', font: { size: 10 } },
+          ticks: { color: 'rgba(0,0,0,.35)', font: { size: 10 } },
           border: { color: 'transparent' },
         },
       },
@@ -1245,8 +1245,8 @@ function renderFeedItem(doc, idx = 0) {
         <div class="feed-date">${tsStr}</div>
       </div>
       ${isMe ? `<div class="feed-actions-right">
-        <button class="feed-icon-btn" onclick="editWorkout('${wid}')">✏️</button>
-        <button class="feed-icon-btn" onclick="confirmDeleteWorkout('${wid}')">🗑️</button>
+        <button class="feed-icon-btn" onclick="editWorkout('${wid}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+        <button class="feed-icon-btn" onclick="confirmDeleteWorkout('${wid}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
       </div>` : ''}
     </div>
     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px">
@@ -1258,10 +1258,12 @@ function renderFeedItem(doc, idx = 0) {
     ${w.photoUrl ? `<div class="feed-photo${w.isBranded ? ' feed-photo--branded' : ''}" data-photo="${escHtml(w.photoUrl)}" onclick="viewPhoto(this.dataset.photo)"><img src="${escHtml(w.photoUrl)}" alt="אימון" loading="lazy"></div>` : ''}
     <div class="feed-actions">
       <button class="like-btn${liked ? ' liked' : ''}" id="like-btn-${wid}" data-owner="${escHtml(w.userId || '')}" onclick="toggleLike('${wid}', this)">
-        💪 <span id="like-count-${wid}">${likedBy.length}</span>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+        <span id="like-count-${wid}">${likedBy.length}</span>
       </button>
       <button class="feed-comment-btn" id="comment-toggle-${wid}" onclick="toggleComments('${wid}')">
-        💬 <span id="comment-count-${wid}">···</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span id="comment-count-${wid}">···</span>
       </button>
     </div>
     <div class="comments-section hidden" id="comments-section-${wid}">
