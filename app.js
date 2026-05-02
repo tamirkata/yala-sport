@@ -278,6 +278,7 @@ let viewingUserId        = null;
 let homeLbCache          = null;
 let homeLbCacheTime      = 0;
 let homeLbExpanded       = false;
+let _calMonth = 0, _calYear = 2024, _calSelectedDate = '';
 const commentListeners   = {};
 
 // ── Notifications state ──
@@ -808,6 +809,7 @@ async function doRegister(e) {
     });
     batch.set(db.collection('usernames').doc(username), { uid: cred.user.uid, email });
     await batch.commit();
+    autoFriendNewUser(cred.user.uid);
   } catch (err) {
     errEl.textContent = authErr(err.code);
     btn.disabled = false; btn.textContent = 'הרשמה →';
@@ -833,9 +835,13 @@ function openWorkoutModal(workoutData = null, workoutId = null) {
   editingWorkoutId = workoutId;
   const isEdit = !!workoutData;
   selectedType = isEdit ? workoutData.type : '';
-  document.getElementById('workout-date').value     = isEdit ? workoutData.date : localDateStr(new Date());
-  const durMins = isEdit ? (workoutData.duration || 0) : 0;
-  document.getElementById('workout-minutes').value  = isEdit ? (durMins || '') : '';
+  const initDate = isEdit ? workoutData.date : localDateStr(new Date());
+  document.getElementById('workout-date').value = initDate;
+  const _d0 = new Date(initDate + 'T12:00:00');
+  _calMonth = _d0.getMonth(); _calYear = _d0.getFullYear(); _calSelectedDate = initDate;
+  document.getElementById('wf-date-label').textContent = fmtDate(initDate);
+  document.getElementById('wf-calendar').style.display = 'none';
+  renderDurationChips(isEdit ? (workoutData.duration || 45) : 45);
   document.getElementById('workout-notes').value    = isEdit ? (workoutData.notes || '') : '';
   document.getElementById('workout-mood').value     = isEdit ? (workoutData.mood  || '') : '';
   clearWorkoutPhoto();
@@ -854,8 +860,82 @@ function openWorkoutModal(workoutData = null, workoutId = null) {
 
 function closeWorkoutModal() {
   document.getElementById('workout-modal').classList.remove('show');
+  const cal = document.getElementById('wf-calendar');
+  if (cal) cal.style.display = 'none';
   editingWorkoutId = null;
   clearWorkoutPhoto();
+}
+
+// ── Duration chips ──────────────────────────────────────────────────────────
+const _DUR_LABELS = {15:'15 דק׳',30:'30 דק׳',45:'45 דק׳',60:'שעה',75:'75 דק׳',
+  90:'1.5 ש׳',105:'105 דק׳',120:'2 ש׳',135:'135 דק׳',150:'2.5 ש׳',180:'3 ש׳'};
+function renderDurationChips(selected) {
+  const el = document.getElementById('dur-chips');
+  if (!el) return;
+  el.innerHTML = [15,30,45,60,75,90,105,120,135,150,180].map(m =>
+    `<button type="button" class="dur-chip${m===selected?' selected':''}" data-mins="${m}" onclick="selectDuration(${m})">${_DUR_LABELS[m]}</button>`
+  ).join('');
+  document.getElementById('workout-minutes').value = selected || '';
+}
+function selectDuration(m) {
+  document.querySelectorAll('.dur-chip').forEach(c => c.classList.toggle('selected', +c.dataset.mins === m));
+  document.getElementById('workout-minutes').value = m;
+}
+
+// ── Custom calendar ─────────────────────────────────────────────────────────
+const _CAL_MONTH_NAMES = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+function toggleCalendar() {
+  const cal = document.getElementById('wf-calendar');
+  if (!cal) return;
+  if (cal.style.display === 'none') { cal.style.display = ''; renderCalendar(); }
+  else cal.style.display = 'none';
+}
+function renderCalendar() {
+  const today    = new Date();
+  const todayStr = localDateStr(today);
+  const minDate  = new Date(today.getTime() - 180 * 86400000);
+  const minStr   = localDateStr(minDate);
+
+  document.getElementById('wf-cal-month-lbl').textContent =
+    `${_CAL_MONTH_NAMES[_calMonth]} ${_calYear}`;
+
+  const firstDow  = new Date(_calYear, _calMonth, 1).getDay();
+  const daysInMon = new Date(_calYear, _calMonth + 1, 0).getDate();
+
+  let html = '';
+  for (let i = 0; i < firstDow; i++) html += '<div class="wf-cal-cell empty"></div>';
+  for (let d = 1; d <= daysInMon; d++) {
+    const ds       = `${_calYear}-${String(_calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isSel    = ds === _calSelectedDate;
+    const isToday  = ds === todayStr;
+    const disabled = ds > todayStr || ds < minStr;
+    html += `<div class="wf-cal-cell${isSel?' selected':''}${isToday&&!isSel?' today':''}${disabled?' disabled':''}"${
+      !disabled ? ` onclick="calSelectDay('${ds}')"` : ''}>${d}</div>`;
+  }
+  document.getElementById('wf-cal-grid').innerHTML = html;
+
+  const prevDisabled = _calYear < minDate.getFullYear() ||
+    (_calYear === minDate.getFullYear() && _calMonth <= minDate.getMonth());
+  const nextDisabled = _calYear > today.getFullYear() ||
+    (_calYear === today.getFullYear() && _calMonth >= today.getMonth());
+  const pb = document.getElementById('wf-cal-prev');
+  const nb = document.getElementById('wf-cal-next');
+  if (pb) pb.disabled = prevDisabled;
+  if (nb) nb.disabled = nextDisabled;
+}
+function calPrevMonth() {
+  if (_calMonth === 0) { _calMonth = 11; _calYear--; } else _calMonth--;
+  renderCalendar();
+}
+function calNextMonth() {
+  if (_calMonth === 11) { _calMonth = 0; _calYear++; } else _calMonth++;
+  renderCalendar();
+}
+function calSelectDay(ds) {
+  _calSelectedDate = ds;
+  document.getElementById('workout-date').value = ds;
+  document.getElementById('wf-date-label').textContent = fmtDate(ds);
+  document.getElementById('wf-calendar').style.display = 'none';
 }
 
 let _pendingPhotoFile = null;
@@ -1172,7 +1252,6 @@ function renderProgressSection() {
   if (!card || !currentUser) return;
 
   const goal      = userProfile?.goal || 3;
-  const first     = (currentUser.displayName || 'ספורטאי').split(/\s+/)[0];
   const now       = new Date();
   const todayStr  = localDateStr(now);
   const weekdayN  = now.getDay();                                   // 0=Sun
@@ -1223,16 +1302,7 @@ function renderProgressSection() {
       isFuture:  wsStr > todayStr });
   }
 
-  // Status message
-  const remaining = Math.max(0, goal - weekCount);
   const goalMet   = weekCount >= goal;
-  const statusMsg = goalMet
-    ? 'השגת את היעד השבועי שלך! 🎉'
-    : weekCount === 0
-      ? (weekdayN >= 4 ? 'עוד לא מאוחר להתחיל! 💪' : 'השבוע מתחיל! בוא נזוז 💪')
-      : weekCount / goal >= 0.6 && weekdayN >= 4
-        ? 'אתה במסלול הנכון, תמשיך! 🔥'
-        : `עוד ${remaining} אימונים ואתה שם! 💪`;
 
   const isWeekly     = chartPeriod === 'weekly';
   const displayCount = isWeekly ? weekCount : monthCount;
@@ -1245,8 +1315,6 @@ function renderProgressSection() {
   const maxMonthVal  = Math.max(...monthWeeks.map(w => w.count), goal, 1);
 
   card.innerHTML = `
-    <div class="pc-greeting">שלום, ${escHtml(first)}! <span class="wave" style="display:inline-block;animation:wave 1.5s ease .3s 1">👋</span></div>
-    <div class="pc-status">${statusMsg}</div>
     <div class="pc-count-row">
       <span class="pc-count-x${goalMet ? ' goal-met' : ''}">${displayCount}</span>
       <span class="pc-count-sep">/</span>
@@ -2128,6 +2196,43 @@ function toggleNotifSection(btn) {
 }
 
 // ══ FRIENDS ══════════════════════════════════════════════════════════════
+async function autoFriendNewUser(newUid) {
+  try {
+    const snap = await db.collection('users').get();
+    const others = snap.docs.map(d => d.id).filter(id => id !== newUid);
+    if (!others.length) return;
+    const FV = firebase.firestore.FieldValue;
+    const batch = db.batch();
+    others.forEach(uid =>
+      batch.update(db.collection('users').doc(uid), { friendIds: FV.arrayUnion(newUid) })
+    );
+    batch.update(db.collection('users').doc(newUid), { friendIds: others });
+    await batch.commit();
+  } catch (e) { console.warn('autoFriendNewUser failed', e); }
+}
+
+async function migrateAllUsersToFriends() {
+  const flag = 'yala-aff-v1-' + currentUser.uid;
+  if (localStorage.getItem(flag)) return;
+  try {
+    const snap = await db.collection('users').get();
+    const others = snap.docs.map(d => d.id).filter(id => id !== currentUser.uid);
+    if (!others.length) { localStorage.setItem(flag, '1'); return; }
+    const FV = firebase.firestore.FieldValue;
+    const batch = db.batch();
+    others.forEach(uid =>
+      batch.update(db.collection('users').doc(uid), { friendIds: FV.arrayUnion(currentUser.uid) })
+    );
+    batch.update(db.collection('users').doc(currentUser.uid), { friendIds: FV.arrayUnion(...others) });
+    await batch.commit();
+    // Sync in-memory profile so loadHomeLb sees updated friendIds immediately
+    const existing = new Set(userProfile.friendIds || []);
+    others.forEach(uid => existing.add(uid));
+    userProfile.friendIds = [...existing];
+    localStorage.setItem(flag, '1');
+  } catch (e) { console.warn('migrateAllUsersToFriends failed', e); }
+}
+
 async function loadFriendsView() {
   document.getElementById('friend-requests-list').innerHTML = skeletonList(2);
   document.getElementById('friends-list').innerHTML         = skeletonList(2);
@@ -3111,6 +3216,7 @@ auth.onAuthStateChanged(async user => {
   if (user) {
     currentUser = user;
     await loadUserProfile();
+    await migrateAllUsersToFriends();
     await loadNotifPrefs();
 
     setHeaderAvatar();
