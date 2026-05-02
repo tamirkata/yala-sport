@@ -141,9 +141,24 @@ const ACH_RARITY_COLOR = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db   = firebase.firestore();
-let messaging, storage;
+let messaging;
 try { messaging = firebase.messaging(); } catch (e) {}
-try { storage   = firebase.storage();   } catch (e) {}
+
+const CLOUDINARY_CLOUD  = 'dcpvdscpx';
+const CLOUDINARY_PRESET = 'yala-sport';
+
+async function uploadToCloudinary(file, folder) {
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('upload_preset', CLOUDINARY_PRESET);
+  fd.append('folder', folder);
+  const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/image/upload`, {
+    method: 'POST', body: fd,
+  });
+  if (!res.ok) throw new Error(`Cloudinary ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  return data.secure_url;
+}
 
 // Persist session permanently on this device (survives browser close / app reopen)
 auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
@@ -467,17 +482,13 @@ function setHeaderAvatar() {
   }
 }
 
-// Upload a photo to Firebase Storage and update the user's profile
 async function uploadProfilePhoto(file) {
   if (!file) return;
-  if (!storage) { toast('Firebase Storage לא זמין — בדוק הגדרות פרויקט', 'error'); return; }
   const wrap = document.getElementById('settings-avatar-wrap');
   if (wrap) wrap.style.opacity = '0.45';
   try {
     const compressed = await compressImage(file, 400, 200);
-    const ref        = storage.ref(`avatars/${currentUser.uid}/profile`);
-    await ref.put(compressed, { contentType: 'image/jpeg' });
-    const photoUrl = await ref.getDownloadURL();
+    const photoUrl   = await uploadToCloudinary(compressed, `yala-sport/avatars/${currentUser.uid}`);
     await currentUser.updateProfile({ photoURL: photoUrl });
     await db.collection('users').doc(currentUser.uid).update({ photoUrl });
     userProfile.photoUrl = photoUrl;
@@ -485,12 +496,8 @@ async function uploadProfilePhoto(file) {
     renderSettings();
     toast('תמונת הפרופיל עודכנה! ✓', 'success');
   } catch (err) {
-    console.error('Photo upload error:', err);
-    if (err.code === 'storage/unauthorized') {
-      toast('אין הרשאה — הגדר Storage Rules בקונסולת Firebase', 'error');
-    } else {
-      toast('שגיאה בהעלאת התמונה', 'error');
-    }
+    console.error('Profile photo upload error:', err);
+    toast('שגיאה בהעלאת התמונה', 'error');
   } finally {
     if (wrap) wrap.style.opacity = '1';
     document.getElementById('photo-upload-input').value = '';
@@ -673,22 +680,14 @@ function clearWorkoutPhoto() {
   if (inp) inp.value = '';
 }
 
-async function uploadWorkoutPhoto(file, workoutId) {
+async function uploadWorkoutPhoto(file) {
   if (!file) return null;
-  if (!storage) { toast('Firebase Storage לא זמין', 'error'); return null; }
   try {
     const compressed = await compressImage(file, 1080, 500);
-    // Use the avatars/ path — rules already deployed for this bucket prefix
-    const ref = storage.ref(`avatars/${currentUser.uid}/workout-${workoutId}`);
-    await ref.put(compressed, { contentType: 'image/jpeg' });
-    return await ref.getDownloadURL();
+    return await uploadToCloudinary(compressed, `yala-sport/workouts/${currentUser.uid}`);
   } catch (err) {
     console.error('Workout photo upload failed:', err);
-    if (err.code === 'storage/unauthorized') {
-      toast('אין הרשאה להעלות תמונה — בדוק Firebase Storage Rules', 'error');
-    } else {
-      toast(`שגיאה בהעלאת תמונה: ${err.message || err.code || err}`, 'error');
-    }
+    toast(`שגיאה בהעלאת תמונה: ${err.message || String(err)}`, 'error');
     return null;
   }
 }
@@ -730,7 +729,7 @@ async function submitWorkout() {
       let photoUrl = undefined;
       if (_pendingPhotoFile) {
         btn.textContent = 'מעלה תמונה...';
-        photoUrl = await uploadWorkoutPhoto(_pendingPhotoFile, editingWorkoutId);
+        photoUrl = await uploadWorkoutPhoto(_pendingPhotoFile);
       }
       const upd = {
         type: selectedType, typeEmoji: t.emoji, typeName: t.label,
@@ -752,7 +751,7 @@ async function submitWorkout() {
       });
       if (_pendingPhotoFile) {
         btn.textContent = 'מעלה תמונה...';
-        const photoUrl = await uploadWorkoutPhoto(_pendingPhotoFile, docRef.id);
+        const photoUrl = await uploadWorkoutPhoto(_pendingPhotoFile);
         if (photoUrl) {
           await docRef.update({ photoUrl });
           toast('האימון נרשם עם תמונה! 📸', 'success');
