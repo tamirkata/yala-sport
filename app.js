@@ -1384,7 +1384,7 @@ function renderProgressSection() {
   // Avatar ring + badge + confetti
   updateAvatarRing(Math.min(100, Math.round((weekCount / goal) * 100)));
   const badge = document.getElementById('week-count-badge');
-  if (badge) badge.textContent = `${weekCount} 🏋️`;
+  if (badge) badge.textContent = `${cachedUserDocs.length} 🏋️`;
   if (goalMet && !goalWasHit) { goalWasHit = true; setTimeout(launchConfetti, 400); }
   else if (!goalMet) goalWasHit = false;
 }
