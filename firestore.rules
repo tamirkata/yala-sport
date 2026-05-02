@@ -71,5 +71,17 @@ service cloud.firestore {
       allow delete: if isAuth() && resource.data.userId == request.auth.uid;
       allow update: if false;
     }
+
+    // ── Notification preferences ──
+    match /users/{uid}/preferences/{prefId} {
+      allow read, write: if isOwner(uid);
+    }
+
+    // ── Notifications inbox ──
+    match /users/{uid}/notifications/{notifId} {
+      allow read, update, delete: if isOwner(uid);
+      // Any authenticated user can push a notification to another user
+      allow create: if isAuth();
+    }
   }
 }

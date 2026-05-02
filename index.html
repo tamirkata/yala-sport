@@ -223,7 +223,20 @@ textarea.form-input { resize: none; }
 }
 .header-center { flex: 1; text-align: center; }
 .header-week-label { font-size: 12px; color: var(--text-3); font-weight: 500; }
+.header-end { display: flex; align-items: center; gap: 8px; }
 .user-badge { display: flex; align-items: center; gap: 10px; }
+.notif-bell-btn {
+  position: relative; width: 36px; height: 36px; border-radius: 50%;
+  background: var(--glass); border: 1px solid var(--border);
+  font-size: 16px; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; flex-shrink: 0;
+}
+.notif-badge {
+  position: absolute; top: -3px; left: -3px;
+  min-width: 16px; height: 16px; background: var(--danger); border-radius: 99px;
+  font-size: 9px; font-weight: 800; color: #fff;
+  display: flex; align-items: center; justify-content: center; padding: 0 3px;
+}
 .week-count-badge {
   background: var(--grad-dim); color: var(--primary);
   font-size: 11px; font-weight: 800;
@@ -783,6 +796,39 @@ textarea.form-input { resize: none; }
 .badge-label { font-size: 9px; font-weight: 700; color: var(--text-3); text-align: center; line-height: 1.3; }
 .badge-item.earned .badge-label { color: var(--primary); }
 
+/* ══ NOTIFICATIONS PANEL ════════════════════════════════════════════════ */
+.notif-sheet {
+  background: var(--bg-card); border-radius: var(--r-l) var(--r-l) 0 0;
+  padding: 12px 0 44px; max-height: 75vh;
+  display: flex; flex-direction: column;
+}
+.notif-sheet-handle {
+  width: 36px; height: 4px; background: rgba(255,255,255,.15); border-radius: 2px;
+  margin: 0 auto 16px;
+}
+.notif-sheet-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 20px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.notif-sheet-title { font-size: 16px; font-weight: 800; }
+.notif-list { overflow-y: auto; flex: 1; }
+.notif-empty { padding: 32px 20px; text-align: center; color: var(--text-3); font-size: 14px; }
+.notif-item {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 14px 20px; border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: background .15s; position: relative;
+}
+.notif-item.unread { background: rgba(255,107,53,.06); }
+.notif-item:active { background: var(--glass); }
+.notif-item-icon { font-size: 26px; flex-shrink: 0; line-height: 1.2; }
+.notif-item-body { flex: 1; min-width: 0; }
+.notif-item-title { font-size: 13px; font-weight: 700; margin-bottom: 2px; line-height: 1.3; }
+.notif-item-sub { font-size: 12px; color: var(--text-2); line-height: 1.4; }
+.notif-item-time { font-size: 10px; color: var(--text-3); margin-top: 3px; }
+.notif-dot {
+  width: 8px; height: 8px; background: var(--primary); border-radius: 50%;
+  flex-shrink: 0; margin-top: 5px;
+}
 /* ══ WORKOUT MODAL ══════════════════════════════════════════════════════ */
 .modal-overlay {
   position: fixed; inset: 0; z-index: 200;
@@ -907,22 +953,27 @@ textarea.form-input { resize: none; }
     <div class="header-center">
       <div class="header-week-label" id="header-week-label"></div>
     </div>
-    <div class="user-badge" onclick="switchTab('settings')" style="cursor:pointer">
-      <div class="week-count-badge" id="week-count-badge">0 🏋️</div>
-      <div class="avatar-ring-wrap">
-        <svg class="avatar-ring-svg" viewBox="0 0 52 52">
-          <defs>
-            <linearGradient id="hdr-ring-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#FF6B35"/>
-              <stop offset="100%" stop-color="#FF1F5A"/>
-            </linearGradient>
-          </defs>
-          <circle cx="26" cy="26" r="22" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="2.5"/>
-          <circle id="avatar-ring" cx="26" cy="26" r="22" fill="none"
-            stroke="url(#hdr-ring-grad)" stroke-width="2.5" stroke-linecap="round"
-            stroke-dasharray="138.2" stroke-dashoffset="138.2"/>
-        </svg>
-        <div class="avatar" id="user-avatar">?</div>
+    <div class="header-end">
+      <button class="notif-bell-btn" id="notif-bell-btn" onclick="openNotifInbox()">
+        🔔<span class="notif-badge" id="notif-badge" style="display:none">0</span>
+      </button>
+      <div class="user-badge" onclick="switchTab('settings')" style="cursor:pointer">
+        <div class="week-count-badge" id="week-count-badge">0 🏋️</div>
+        <div class="avatar-ring-wrap">
+          <svg class="avatar-ring-svg" viewBox="0 0 52 52">
+            <defs>
+              <linearGradient id="hdr-ring-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#FF6B35"/>
+                <stop offset="100%" stop-color="#FF1F5A"/>
+              </linearGradient>
+            </defs>
+            <circle cx="26" cy="26" r="22" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="2.5"/>
+            <circle id="avatar-ring" cx="26" cy="26" r="22" fill="none"
+              stroke="url(#hdr-ring-grad)" stroke-width="2.5" stroke-linecap="round"
+              stroke-dasharray="138.2" stroke-dashoffset="138.2"/>
+          </svg>
+          <div class="avatar" id="user-avatar">?</div>
+        </div>
       </div>
     </div>
   </header>
@@ -1075,6 +1126,18 @@ textarea.form-input { resize: none; }
     </div>
   </nav>
 
+</div>
+
+<!-- NOTIFICATIONS PANEL -->
+<div class="modal-overlay" id="notif-panel" onclick="onNotifPanelBackdrop(event)">
+  <div class="notif-sheet">
+    <div class="notif-sheet-handle"></div>
+    <div class="notif-sheet-header">
+      <div class="notif-sheet-title">🔔 התראות</div>
+      <button class="btn-text" onclick="markAllRead().then(renderNotifPanel)">סמן הכל כנקרא</button>
+    </div>
+    <div id="notif-list" class="notif-list"></div>
+  </div>
 </div>
 
 <!-- WORKOUT MODAL -->

@@ -272,6 +272,23 @@ let feedOffset           = 0;
 let feedObserver         = null;
 const commentListeners   = {};
 
+// ── Notifications state ──
+const DEFAULT_NOTIF_PREFS = {
+  master: true,
+  friendCompletedWorkout: true,
+  noWorkoutTwoDays: true,
+  friendLikedMyWorkout: true,
+  friendCommentedMyWorkout: true,
+  newAchievement: true,
+  weeklyGoalReminder: true,
+};
+let notifPrefs              = null;
+let _notifDocs              = [];
+let _notifUnsub             = null;
+let _noWorkoutNotifSent     = false;
+let _weeklyGoalNotifSent    = false;
+let _notifPermDeniedShown   = false;
+
 // ══ ANIMATION UTILITIES ══════════════════════════════════════════════════
 function animateCounter(el, target, duration = 700) {
   if (!el) return;
@@ -888,6 +905,19 @@ async function submitWorkout() {
         toast('האימון נרשם! 💪', 'success');
       }
     }
+    // Notify friends about new workout (not on edits)
+    if (!editingWorkoutId) {
+      const friendIds = userProfile.friendIds || [];
+      if (friendIds.length) {
+        const t = WORKOUT_TYPES.find(x => x.key === selectedType);
+        friendIds.forEach(fid => pushNotification(fid, {
+          type: 'friendCompletedWorkout',
+          title: `${t?.emoji || '💪'} ${userProfile.name || 'חבר'} התאמן!`,
+          body: `${userProfile.name || 'חבר'} סיים ${t?.label || 'אימון'}`,
+          icon: t?.emoji || '💪',
+        }));
+      }
+    }
     closeWorkoutModal();
     loadHomeView();
   } catch (err) {
@@ -945,6 +975,7 @@ async function loadHomeView() {
   loadStories();
   checkReminder(cachedUserDocs);
   checkAchievements(cachedUserDocs);
+  checkWeeklyGoalReminder();
 }
 
 // ══ PROGRESS CHART ═══════════════════════════════════════════════════════
@@ -1127,7 +1158,7 @@ function renderFeedItem(doc, idx = 0) {
     ${w.notes ? `<div class="feed-notes">${escHtml(w.notes)}</div>` : ''}
     ${w.photoUrl ? `<div class="feed-photo" data-photo="${escHtml(w.photoUrl)}" onclick="viewPhoto(this.dataset.photo)"><img src="${escHtml(w.photoUrl)}" alt="אימון" loading="lazy"></div>` : ''}
     <div class="feed-actions">
-      <button class="like-btn${liked ? ' liked' : ''}" id="like-btn-${wid}" onclick="toggleLike('${wid}', this)">
+      <button class="like-btn${liked ? ' liked' : ''}" id="like-btn-${wid}" data-owner="${escHtml(w.userId || '')}" onclick="toggleLike('${wid}', this)">
         💪 <span id="like-count-${wid}">${likedBy.length}</span>
       </button>
       <button class="feed-comment-btn" id="comment-toggle-${wid}" onclick="toggleComments('${wid}')">
@@ -1137,7 +1168,7 @@ function renderFeedItem(doc, idx = 0) {
     <div class="comments-section hidden" id="comments-section-${wid}">
       <div id="comments-list-${wid}"></div>
       <div class="comment-input-row">
-        <input class="form-input" id="comment-input-${wid}" placeholder="כתוב תגובה..." style="flex:1">
+        <input class="form-input" id="comment-input-${wid}" data-owner="${escHtml(w.userId || '')}" placeholder="כתוב תגובה..." style="flex:1">
         <button class="btn-sm" onclick="addComment('${wid}')">שלח</button>
       </div>
     </div>
@@ -1449,6 +1480,17 @@ async function toggleLike(wid, btn) {
         ? firebase.firestore.FieldValue.arrayRemove(currentUser.uid)
         : firebase.firestore.FieldValue.arrayUnion(currentUser.uid),
     });
+    if (!liked) {
+      const ownerId = btn.dataset.owner;
+      if (ownerId && ownerId !== currentUser.uid) {
+        pushNotification(ownerId, {
+          type: 'friendLikedMyWorkout',
+          title: 'קיבלת לייק! 💪',
+          body: `${userProfile.name || 'מישהו'} אהב את האימון שלך`,
+          icon: '💪',
+        });
+      }
+    }
   } catch {
     btn.classList.toggle('liked', liked);
     if (countEl) countEl.textContent = Math.max(0, (parseInt(countEl.textContent) || 0) - delta);
@@ -1513,7 +1555,15 @@ async function addComment(wid) {
       text,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
-    // onSnapshot in subscribeComments will update the list automatically
+    const ownerId = input?.dataset.owner;
+    if (ownerId && ownerId !== currentUser.uid) {
+      pushNotification(ownerId, {
+        type: 'friendCommentedMyWorkout',
+        title: 'תגובה חדשה על האימון שלך 💬',
+        body: `${userProfile.name || 'מישהו'}: ${text.slice(0, 60)}`,
+        icon: '💬',
+      });
+    }
   } catch (err) {
     toast('שגיאה בשליחת התגובה', 'error'); input.value = text;
   }
@@ -1533,6 +1583,15 @@ function checkReminder(allDocs) {
   if (diff >= 2) {
     document.getElementById('reminder-text').textContent = `לא התאמנת ${diff} ימים — יאלה! 💪`;
     banner.classList.remove('hidden');
+    if (!_noWorkoutNotifSent && isNotifEnabled('noWorkoutTwoDays')) {
+      _noWorkoutNotifSent = true;
+      pushNotification(currentUser.uid, {
+        type: 'noWorkoutTwoDays',
+        title: 'הגיע הזמן להתאמן! 💪',
+        body: `לא התאמנת כבר ${diff} ימים`,
+        icon: '💪',
+      });
+    }
   } else {
     banner.classList.add('hidden');
   }
@@ -1871,7 +1930,17 @@ async function checkAchievements(allDocs) {
   try { await db.collection('users').doc(currentUser.uid).update({ badges: updated }); } catch {}
   toAdd.forEach((key, i) => {
     const a = ACHIEVEMENTS.find(x => x.key === key);
-    if (a) setTimeout(() => toast(`🏅 הישג חדש! ${a.emoji} ${a.label}`, 'success'), 900 + i * 700);
+    if (a) {
+      setTimeout(() => toast(`🏅 הישג חדש! ${a.emoji} ${a.label}`, 'success'), 900 + i * 700);
+      if (isNotifEnabled('newAchievement')) {
+        pushNotification(currentUser.uid, {
+          type: 'newAchievement',
+          title: `🏅 הישג חדש! ${a.label}`,
+          body: a.desc,
+          icon: a.emoji,
+        });
+      }
+    }
   });
 }
 
@@ -2018,6 +2087,35 @@ function calcNutrition(p) {
 // ══ SETTINGS / PROFILE ═══════════════════════════════════════════════════
 function renderSettings() { renderProfile(); }
 
+function notifRow(key, label, sub, prefs) {
+  return `<div class="settings-row" style="border-top:1px solid var(--border)">
+    <div><div class="settings-label">${label}</div><div class="settings-sub">${sub}</div></div>
+    <label class="toggle">
+      <input type="checkbox" ${prefs[key] !== false ? 'checked' : ''} onchange="saveNotifPref('${key}',this.checked)">
+      <span class="toggle-track"></span>
+    </label>
+  </div>`;
+}
+
+function notifSettingsHtml(prefs) {
+  const masterOn = prefs.master !== false;
+  return `<div class="settings-row">
+    <div><div class="settings-label">הפעל התראות</div><div class="settings-sub">מאסטר לכל סוגי ההתראות</div></div>
+    <label class="toggle">
+      <input type="checkbox" ${masterOn ? 'checked' : ''} onchange="saveNotifPref('master',this.checked).then(()=>renderProfile())">
+      <span class="toggle-track"></span>
+    </label>
+  </div>
+  <div style="${masterOn ? '' : 'opacity:.38;pointer-events:none'}">
+    ${notifRow('friendCompletedWorkout', 'חבר סיים אימון',          'כשחבר שלך מתאמן',              prefs)}
+    ${notifRow('noWorkoutTwoDays',       'לא התאמנת 2 ימים',        'תזכורת להתאמן',                 prefs)}
+    ${notifRow('friendLikedMyWorkout',   'לייק על האימון שלך',      'כשחבר נותן לייק לאימון שלך',    prefs)}
+    ${notifRow('friendCommentedMyWorkout','תגובה על האימון שלך',    'כשחבר מגיב על אימון שלך',       prefs)}
+    ${notifRow('newAchievement',         'הישג חדש',                 'כשמשיגים הישג',                 prefs)}
+    ${notifRow('weeklyGoalReminder',     'תזכורת יעד שבועי',        'בסמ-שבוע אם מפגרים ביעד',       prefs)}
+  </div>`;
+}
+
 function renderProfile() {
   if (!currentUser) return;
   const p        = userProfile;
@@ -2109,13 +2207,7 @@ function renderProfile() {
     <div class="profile-section">
       <div class="section-title">התראות</div>
       <div class="settings-card">
-        <div class="settings-row">
-          <div><div class="settings-label">תזכורות אימון</div><div class="settings-sub">קבל התראה אם לא התאמנת 2 ימים</div></div>
-          <label class="toggle">
-            <input type="checkbox" id="notif-toggle" ${p.notifications ? 'checked' : ''} onchange="toggleNotifications(this.checked)">
-            <span class="toggle-track"></span>
-          </label>
-        </div>
+        ${notifSettingsHtml(notifPrefs || DEFAULT_NOTIF_PREFS)}
       </div>
     </div>
     <button class="btn-danger btn-full" onclick="doSignOut()" style="margin-top:8px">התנתק</button>
@@ -2219,24 +2311,150 @@ async function changeGoal(delta) {
   try { await db.collection('users').doc(currentUser.uid).update({ goal }); loadHomeView(); } catch {}
 }
 
-async function toggleNotifications(checked) {
-  if (checked) { await setupPushNotifications(); }
-  else {
-    try { await db.collection('users').doc(currentUser.uid).update({ notifications: false }); toast('התראות כובו'); } catch {}
+// ══ NOTIFICATION PREFS ═══════════════════════════════════════════════════
+async function loadNotifPrefs() {
+  try {
+    const doc = await db.collection('users').doc(currentUser.uid)
+      .collection('preferences').doc('notifications').get();
+    if (doc.exists) {
+      notifPrefs = { ...DEFAULT_NOTIF_PREFS, ...doc.data() };
+    } else {
+      notifPrefs = { ...DEFAULT_NOTIF_PREFS };
+      db.collection('users').doc(currentUser.uid)
+        .collection('preferences').doc('notifications').set(notifPrefs).catch(() => {});
+    }
+  } catch { notifPrefs = { ...DEFAULT_NOTIF_PREFS }; }
+}
+
+function isNotifEnabled(type) {
+  const p = notifPrefs || DEFAULT_NOTIF_PREFS;
+  return p.master !== false && p[type] !== false;
+}
+
+async function saveNotifPref(key, value) {
+  if (!notifPrefs) notifPrefs = { ...DEFAULT_NOTIF_PREFS };
+  notifPrefs[key] = value;
+  try {
+    await db.collection('users').doc(currentUser.uid)
+      .collection('preferences').doc('notifications')
+      .set({ [key]: value }, { merge: true });
+  } catch {}
+}
+
+// ══ NOTIFICATION DELIVERY ═════════════════════════════════════════════════
+async function pushNotification(uid, { type, title, body, icon = '💪', data = {} }) {
+  if (!currentUser) return;
+  try {
+    await db.collection('users').doc(uid).collection('notifications').add({
+      type, title, body, icon, data, read: false,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+  } catch {}
+  if (uid === currentUser.uid && Notification.permission === 'granted' && isNotifEnabled(type)) {
+    try { new Notification(title, { body, icon: './icon-192.png', dir: 'rtl', lang: 'he', tag: type }); } catch {}
   }
 }
 
-async function setupPushNotifications() {
-  if (!messaging) { toast('התראות לא נתמכות בדפדפן זה', 'error'); document.getElementById('notif-toggle').checked = false; return; }
-  try {
-    const permission = await Notification.requestPermission();
-    if (permission !== 'granted') { toast('הרשאת התראות נדחתה', 'error'); document.getElementById('notif-toggle').checked = false; return; }
-    const token = await messaging.getToken({ vapidKey: VAPID_KEY });
-    if (token) {
-      await db.collection('users').doc(currentUser.uid).update({ fcmToken: token, notifications: true });
-      toast('התראות הופעלו! 🔔', 'success');
+async function requestNotifPermission() {
+  if (Notification.permission === 'granted') return;
+  if (Notification.permission === 'denied') {
+    if (!_notifPermDeniedShown && !localStorage.getItem('notifDeniedShown')) {
+      _notifPermDeniedShown = true;
+      localStorage.setItem('notifDeniedShown', '1');
+      toast('כדי לקבל התראות, אפשר הרשאות דפדפן בהגדרות 🔔', '');
     }
-  } catch (err) { toast('שגיאה', 'error'); document.getElementById('notif-toggle').checked = false; }
+    return;
+  }
+  try {
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted' && !localStorage.getItem('notifDeniedShown')) {
+      _notifPermDeniedShown = true;
+      localStorage.setItem('notifDeniedShown', '1');
+      toast('כדי לקבל התראות, אפשר הרשאות דפדפן בהגדרות 🔔', '');
+    }
+  } catch {}
+}
+
+// ══ NOTIFICATIONS INBOX ═══════════════════════════════════════════════════
+function subscribeNotifications() {
+  if (_notifUnsub) _notifUnsub();
+  if (!currentUser) return;
+  _notifUnsub = db.collection('users').doc(currentUser.uid)
+    .collection('notifications')
+    .orderBy('createdAt', 'desc').limit(30)
+    .onSnapshot(snap => {
+      _notifDocs = snap.docs;
+      updateNotifBadge(snap.docs.filter(d => !d.data().read).length);
+    }, () => {});
+}
+
+function updateNotifBadge(count) {
+  const el = document.getElementById('notif-badge');
+  if (!el) return;
+  if (count > 0) { el.textContent = count > 9 ? '9+' : String(count); el.style.display = ''; }
+  else { el.style.display = 'none'; }
+}
+
+function openNotifInbox() {
+  document.getElementById('notif-panel').classList.add('show');
+  renderNotifPanel();
+}
+function closeNotifInbox() { document.getElementById('notif-panel').classList.remove('show'); }
+function onNotifPanelBackdrop(e) { if (e.target.id === 'notif-panel') closeNotifInbox(); }
+
+function renderNotifPanel() {
+  const list = document.getElementById('notif-list');
+  if (!_notifDocs.length) {
+    list.innerHTML = '<div class="notif-empty">אין התראות 🔕</div>';
+    return;
+  }
+  list.innerHTML = _notifDocs.map(doc => {
+    const n = doc.data();
+    return `<div class="notif-item${n.read ? '' : ' unread'}" onclick="markNotifRead('${doc.id}')">
+      <div class="notif-item-icon">${escHtml(n.icon || '💪')}</div>
+      <div class="notif-item-body">
+        <div class="notif-item-title">${escHtml(n.title)}</div>
+        <div class="notif-item-sub">${escHtml(n.body)}</div>
+        ${n.createdAt ? `<div class="notif-item-time">${timeAgo(n.createdAt)}</div>` : ''}
+      </div>
+      ${n.read ? '' : '<div class="notif-dot"></div>'}
+    </div>`;
+  }).join('');
+}
+
+async function markNotifRead(id) {
+  try {
+    await db.collection('users').doc(currentUser.uid)
+      .collection('notifications').doc(id).update({ read: true });
+  } catch {}
+}
+
+async function markAllRead() {
+  const unread = _notifDocs.filter(d => !d.data().read);
+  if (!unread.length) return;
+  const batch = db.batch();
+  unread.forEach(d => batch.update(d.ref, { read: true }));
+  try { await batch.commit(); } catch {}
+}
+
+// ══ PERIODIC CHECKS ══════════════════════════════════════════════════════
+function checkWeeklyGoalReminder() {
+  if (_weeklyGoalNotifSent || !isNotifEnabled('weeklyGoalReminder')) return;
+  const day = new Date().getDay();
+  if (day !== 3 && day !== 4) return; // only Wed/Thu
+  const wStart = weekKey();
+  const wEnd   = localDateStr(new Date(new Date(wStart + 'T00:00:00').getTime() + 6 * 86400000));
+  const count  = cachedUserDocs.filter(d => { const dt = d.data().date; return dt >= wStart && dt <= wEnd; }).length;
+  const goal   = userProfile.goal || 3;
+  if (count < goal) {
+    _weeklyGoalNotifSent = true;
+    pushNotification(currentUser.uid, {
+      type: 'weeklyGoalReminder',
+      title: 'תזכורת יעד שבועי 📅',
+      body: `יש לך ${count}/${goal} אימונים השבוע — יאלה, עוד אפשר!`,
+      icon: '📅',
+    });
+  }
 }
 
 // ══ BOOT ═════════════════════════════════════════════════════════════════
@@ -2260,9 +2478,9 @@ auth.onAuthStateChanged(async user => {
   if (user) {
     currentUser = user;
     await loadUserProfile();
+    await loadNotifPrefs();
 
     setHeaderAvatar();
-    if (userProfile.notifications) document.getElementById('notif-toggle').checked = true;
 
     document.getElementById('auth-screen').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
@@ -2270,18 +2488,22 @@ auth.onAuthStateChanged(async user => {
     initScrollEffects();
     setTimeout(() => { moveNavIndicator('home'); initRipples(); }, 50);
 
-    // Subscribe to workouts; load home once first snapshot arrives
     subscribeWorkouts(() => loadHomeView());
+    subscribeNotifications();
+    requestNotifPermission();
 
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
   } else {
     if (workoutsUnsubscribe) { workoutsUnsubscribe(); workoutsUnsubscribe = null; }
+    if (_notifUnsub)         { _notifUnsub(); _notifUnsub = null; }
     if (feedObserver)        { feedObserver.disconnect(); feedObserver = null; }
     if (storyTimer)          { clearTimeout(storyTimer); storyTimer = null; }
     Object.values(commentListeners).forEach(u => u());
     Object.keys(commentListeners).forEach(k => delete commentListeners[k]);
     currentUser = null; userProfile = { goal: 3, friendIds: [], badges: [] };
+    notifPrefs = null; _notifDocs = [];
     reminderDismissed = false; cachedUserDocs = []; goalWasHit = false; currentTab = 'home';
+    _noWorkoutNotifSent = false; _weeklyGoalNotifSent = false;
     feedAllDocs = []; feedOffset = 0; achFilter = 'all';
     if (progressChart) { progressChart.destroy(); progressChart = null; }
     document.getElementById('auth-screen').classList.remove('hidden');
