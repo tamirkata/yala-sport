@@ -420,6 +420,14 @@ function timeAgo(ts) {
   return `לפני ${Math.floor(diff / 86400)} ימים`;
 }
 
+function storyTimeAgoShort(ts) {
+  if (!ts) return '';
+  const then = ts.toMillis ? ts.toMillis() : (ts.seconds ? ts.seconds * 1000 : new Date(ts).getTime());
+  const diff = Math.floor((Date.now() - then) / 60000);
+  if (diff < 60) return `${diff}ד׳`;
+  return `${Math.floor(diff / 60)}ש׳`;
+}
+
 // Compresses an image file to maxDimPx × maxDimPx and under maxKB, using Canvas
 async function compressImage(file, maxDimPx, maxKB) {
   return new Promise(resolve => {
@@ -1050,8 +1058,10 @@ async function loadStories() {
     if (!storyDocs.length) { if (bar) bar.style.display = 'none'; return; }
     if (bar) bar.style.display = '';
     el.innerHTML = storyDocs.map((doc, i) => {
-      const w = doc.data();
+      const w    = doc.data();
       const seen = seenStories.has(doc.id);
+      const ts   = w.createdAt || null;
+      const ago  = storyTimeAgoShort(ts);
       return `<div class="story-item" onclick="openStory(${i})">
         <div class="story-ring${seen ? ' seen' : ''}">
           ${w.userPhotoUrl
@@ -1059,6 +1069,7 @@ async function loadStories() {
             : `<div class="story-avatar-img" style="background:var(--grad);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff">${escHtml(avatarOf(w.userName || '?'))}</div>`}
         </div>
         <div class="story-name">${escHtml((w.userName || '?').split(' ')[0])}</div>
+        ${ago ? `<div class="story-time-ago">${ago}</div>` : ''}
       </div>`;
     }).join('');
   } catch (err) { console.error('Stories:', err); }
@@ -1066,17 +1077,22 @@ async function loadStories() {
 
 function openStory(idx) {
   storyIndex = idx;
-  showStoryAt(storyIndex);
   document.getElementById('story-overlay').classList.remove('hidden');
+  showStoryAt(idx);
 }
 
 function showStoryAt(idx) {
+  if (idx < 0) return;
   if (idx >= storyDocs.length) { closeStory(); return; }
+  storyIndex = idx;
   const doc = storyDocs[idx];
   const w   = doc.data();
+
   seenStories.add(doc.id);
   try { localStorage.setItem('seenStories', JSON.stringify([...seenStories])); } catch {}
+
   document.getElementById('story-img').src = w.photoUrl;
+
   const userInfo = document.getElementById('story-user-info');
   userInfo.innerHTML = `
     ${avatarHtml(w.userName || '?', w.userPhotoUrl || '', 'lb-avatar', '36')}
@@ -1084,11 +1100,17 @@ function showStoryAt(idx) {
       <div class="story-user-name">${escHtml(w.userName || 'משתמש')}</div>
       <div class="story-time">${w.createdAt ? timeAgo(w.createdAt) : fmtDate(w.date)}</div>
     </div>`;
-  const cap = document.getElementById('story-caption-bar');
-  cap.innerHTML = (w.typeEmoji || w.notes || w.mood) ? `
+
+  const cap  = document.getElementById('story-caption-bar');
+  const inner = (w.typeEmoji || w.notes || w.mood) ? `
     <span class="story-pill">${w.typeEmoji || '💪'} ${escHtml(w.typeName || w.type)}</span>
     ${w.mood  ? `<div class="story-caption-text" style="margin-top:6px">💬 ${escHtml(w.mood)}</div>`  : ''}
     ${w.notes ? `<div class="story-caption-text" style="margin-top:4px">${escHtml(w.notes)}</div>` : ''}` : '';
+  cap.innerHTML = inner +
+    `<div class="story-views-row hidden" id="story-views-row" onclick="openStoryViewers()">
+       👁 <span id="story-views-count">0</span> צפיות
+     </div>`;
+
   // Progress bar animation
   const fill = document.getElementById('story-progress-fill');
   fill.style.transition = 'none'; fill.style.width = '0%';
@@ -1096,12 +1118,60 @@ function showStoryAt(idx) {
   fill.style.transition = 'width 5s linear'; fill.style.width = '100%';
   if (storyTimer) clearTimeout(storyTimer);
   storyTimer = setTimeout(() => showStoryAt(storyIndex + 1), 5000);
+
+  // Record view (skip for own stories)
+  if (w.userId !== currentUser.uid) recordStoryView(doc.id);
+
+  // Show viewer count for own stories
+  if (w.userId === currentUser.uid) {
+    doc.ref.get().then(fresh => {
+      const views = fresh.data().storyViews || [];
+      const row = document.getElementById('story-views-row');
+      if (!row) return;
+      row.dataset.views = JSON.stringify(views);
+      if (views.length > 0) {
+        row.classList.remove('hidden');
+        document.getElementById('story-views-count').textContent = views.length;
+      }
+    }).catch(() => {});
+  }
+}
+
+function handleStoryTap(e) {
+  const mid = window.innerWidth / 2;
+  if (e.clientX < mid) showStoryAt(storyIndex - 1);
+  else                  showStoryAt(storyIndex + 1);
+}
+
+async function recordStoryView(docId) {
+  if (!currentUser) return;
+  try {
+    await db.collection('workouts').doc(docId).update({
+      storyViews: firebase.firestore.FieldValue.arrayUnion({
+        uid:  currentUser.uid,
+        name: userProfile?.name || currentUser.displayName || 'משתמש',
+      }),
+    });
+  } catch (e) {}
+}
+
+function openStoryViewers() {
+  const row = document.getElementById('story-views-row');
+  let views = [];
+  try { views = JSON.parse(row?.dataset?.views || '[]'); } catch {}
+  document.getElementById('story-viewers-list').innerHTML = views.length
+    ? views.map(v => `<div class="viewers-item">${escHtml(v.name || 'משתמש')}</div>`).join('')
+    : '<div style="padding:16px;color:var(--text-3);text-align:center">אף אחד עוד לא צפה</div>';
+  document.getElementById('story-viewers-sheet').classList.remove('hidden');
+}
+
+function closeStoryViewers() {
+  document.getElementById('story-viewers-sheet').classList.add('hidden');
 }
 
 function closeStory() {
   document.getElementById('story-overlay').classList.add('hidden');
   if (storyTimer) { clearTimeout(storyTimer); storyTimer = null; }
-  // Refresh story rings (seen state)
   loadStories();
 }
 
