@@ -635,6 +635,30 @@ textarea.form-input { resize: none; }
 /* ══ MISC ═══════════════════════════════════════════════════════════════ */
 .empty-state { text-align: center; padding: 40px 20px; color: var(--text-3); font-size: 15px; font-weight: 600; }
 .empty-state .empty-icon { font-size: 52px; margin-bottom: 14px; }
+
+/* ══ AVATAR PHOTO ════════════════════════════════════════════════════════ */
+.lb-avatar { overflow: hidden; }
+.lb-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.avatar img { width: 100%; height: 100%; object-fit: cover; display: block; border-radius: 50%; }
+
+.settings-avatar-wrap {
+  position: relative; cursor: pointer; flex-shrink: 0;
+  border-radius: 50%; overflow: hidden;
+  width: 64px; height: 64px;
+}
+.settings-avatar-wrap .avatar {
+  position: static; width: 100%; height: 100%;
+  font-size: 22px; border-radius: 50%;
+}
+.avatar-edit-overlay {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: rgba(0,0,0,.52);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px; opacity: 0; transition: opacity .2s;
+  pointer-events: none;
+}
+.settings-avatar-wrap:hover .avatar-edit-overlay { opacity: 1; }
+@media (hover: none) { .avatar-edit-overlay { opacity: .7; } }
 </style>
 </head>
 <body>
@@ -798,8 +822,15 @@ textarea.form-input { resize: none; }
             <div>
               <div class="settings-label" id="settings-name">—</div>
               <div class="settings-sub" id="settings-email">—</div>
+              <div class="settings-sub" style="margin-top:4px;color:var(--primary);font-size:11px">לחץ על התמונה לשינוי</div>
             </div>
-            <div class="avatar" id="settings-avatar" style="position:static;width:44px;height:44px;font-size:16px">?</div>
+            <div class="settings-avatar-wrap" id="settings-avatar-wrap"
+                 onclick="document.getElementById('photo-upload-input').click()">
+              <div class="avatar" id="settings-avatar">?</div>
+              <div class="avatar-edit-overlay">📷</div>
+            </div>
+            <input type="file" id="photo-upload-input" accept="image/*" style="display:none"
+                   onchange="if(this.files[0]) uploadProfilePhoto(this.files[0])">
           </div>
         </div>
       </div>
@@ -903,6 +934,7 @@ textarea.form-input { resize: none; }
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-storage-compat.js"></script>
 <script src="firebase-config.js"></script>
 <script src="app.js"></script>
 </body>

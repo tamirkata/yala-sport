@@ -22,21 +22,26 @@ const ACHIEVEMENTS = [
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db   = firebase.firestore();
-let messaging;
+let messaging, storage;
 try { messaging = firebase.messaging(); } catch (e) {}
+try { storage   = firebase.storage();   } catch (e) {}
+
+// Persist session permanently on this device (survives browser close / app reopen)
+auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(() => {});
 
 // ══ STATE ════════════════════════════════════════════════════════════════
-let currentUser       = null;
-let userProfile       = { goal: 3 };
-let leaderboardPeriod = 'weekly';
-let selectedType      = '';
-let reminderDismissed = false;
-let editingWorkoutId  = null;
-let chartPeriod       = 'weekly';
-let progressChart     = null;
-let cachedUserDocs    = [];
-let goalWasHit        = false;
-let currentTab        = 'home';
+let currentUser          = null;
+let userProfile          = { goal: 3 };
+let leaderboardPeriod    = 'weekly';
+let selectedType         = '';
+let reminderDismissed    = false;
+let editingWorkoutId     = null;
+let chartPeriod          = 'weekly';
+let progressChart        = null;
+let cachedUserDocs       = [];
+let goalWasHit           = false;
+let currentTab           = 'home';
+let workoutsUnsubscribe  = null;
 
 // ══ ANIMATION UTILITIES ══════════════════════════════════════════════════
 function animateCounter(el, target, duration = 700) {
@@ -226,21 +231,29 @@ function avatarOf(name) {
   return (p.length >= 2 ? p[0][0] + p[1][0] : p[0].slice(0, 2)).toUpperCase();
 }
 
+// Build "YYYY-MM-DD" from a local Date (avoids UTC-shift bugs in toISOString)
+function localDateStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// Monday of the week that is `offsetWeeks` weeks from now (Mon–Sun calendar)
 function weekKey(offsetWeeks = 0) {
-  const d = new Date();
-  d.setDate(d.getDate() - d.getDay() + offsetWeeks * 7);
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString().slice(0, 10);
+  const d   = new Date();
+  const day = d.getDay();                                  // 0=Sun … 6=Sat
+  d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day) + offsetWeeks * 7);
+  return localDateStr(d);
 }
 
 function monthKey(d = new Date()) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
+// Monday of the week that contains the given date string (Mon–Sun calendar)
 function dateToWeekKey(dateStr) {
-  const d = new Date(dateStr + 'T12:00:00');
-  d.setDate(d.getDate() - d.getDay());
-  return d.toISOString().slice(0, 10);
+  const d   = new Date(dateStr + 'T12:00:00');             // noon avoids DST edge cases
+  const day = d.getDay();
+  d.setDate(d.getDate() + (day === 0 ? -6 : 1 - day));
+  return localDateStr(d);
 }
 
 function fmtDate(dateStr) {
@@ -254,6 +267,109 @@ function fmtDate(dateStr) {
 function escHtml(s) {
   if (!s) return '';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ══ AVATAR HELPERS ═══════════════════════════════════════════════════════
+// Returns HTML for an avatar: photo <img> when available, initials otherwise
+function avatarHtml(name, photoUrl, cls = 'lb-avatar', size = '') {
+  const initials = escHtml(avatarOf(name || '?'));
+  const szStyle  = size ? `width:${size}px;height:${size}px;` : '';
+  if (photoUrl) {
+    return `<div class="${cls}" style="${szStyle}padding:0;overflow:hidden">` +
+           `<img src="${escHtml(photoUrl)}" alt="${initials}" ` +
+           `style="width:100%;height:100%;object-fit:cover;display:block" ` +
+           `onerror="this.parentElement.innerHTML='${initials}'">` +
+           `</div>`;
+  }
+  return `<div class="${cls}" style="${szStyle}">${initials}</div>`;
+}
+
+// Updates the header avatar element (photo or initials)
+function setHeaderAvatar() {
+  const el       = document.getElementById('user-avatar');
+  if (!el) return;
+  const name     = currentUser?.displayName || '?';
+  const photoUrl = userProfile?.photoUrl || currentUser?.photoURL || '';
+  if (photoUrl) {
+    el.innerHTML = `<img src="${escHtml(photoUrl)}" alt="${escHtml(avatarOf(name))}" ` +
+                   `style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block" ` +
+                   `onerror="this.parentElement.textContent='${escHtml(avatarOf(name))}'">`;
+  } else {
+    el.textContent = avatarOf(name);
+  }
+}
+
+// Upload a photo to Firebase Storage and update the user's profile
+async function uploadProfilePhoto(file) {
+  if (!file) return;
+  if (!storage) { toast('Firebase Storage לא זמין — בדוק הגדרות פרויקט', 'error'); return; }
+  if (file.size > 5 * 1024 * 1024) { toast('התמונה גדולה מדי (מקסימום 5MB)', 'error'); return; }
+  const wrap = document.getElementById('settings-avatar-wrap');
+  if (wrap) wrap.style.opacity = '0.45';
+  try {
+    const ref      = storage.ref(`avatars/${currentUser.uid}/profile`);
+    await ref.put(file, { contentType: file.type });
+    const photoUrl = await ref.getDownloadURL();
+    await currentUser.updateProfile({ photoURL: photoUrl });
+    await db.collection('users').doc(currentUser.uid).update({ photoUrl });
+    userProfile.photoUrl = photoUrl;
+    setHeaderAvatar();
+    renderSettings();
+    toast('תמונת הפרופיל עודכנה! ✓', 'success');
+  } catch (err) {
+    console.error('Photo upload error:', err);
+    if (err.code === 'storage/unauthorized') {
+      toast('אין הרשאה — הגדר Storage Rules בקונסולת Firebase', 'error');
+    } else {
+      toast('שגיאה בהעלאת התמונה', 'error');
+    }
+  } finally {
+    if (wrap) wrap.style.opacity = '1';
+    document.getElementById('photo-upload-input').value = '';
+  }
+}
+
+// ══ REAL-TIME WORKOUTS LISTENER ══════════════════════════════════════════
+// Subscribes to the current user's workouts; calls onFirst() once data is ready
+function subscribeWorkouts(onFirst) {
+  if (workoutsUnsubscribe) { workoutsUnsubscribe(); workoutsUnsubscribe = null; }
+  let isFirst = true;
+  workoutsUnsubscribe = db.collection('workouts')
+    .where('userId', '==', currentUser.uid)
+    .onSnapshot(snap => {
+      cachedUserDocs = snap.docs.sort((a, b) => b.data().date.localeCompare(a.data().date));
+      updateWeeklyStats();
+      if (isFirst) { isFirst = false; if (onFirst) onFirst(); }
+    }, err => console.error('Workouts listener:', err));
+}
+
+// Recomputes and renders the weekly counter, progress ring, and header badge
+function updateWeeklyStats() {
+  if (!currentUser) return;
+  const wStart    = weekKey();
+  const wEnd      = localDateStr(new Date(new Date(wStart + 'T00:00:00').getTime() + 6 * 86400000));
+  const goal      = userProfile.goal || 3;
+  const weekCount = cachedUserDocs.filter(d => { const dt = d.data().date; return dt >= wStart && dt <= wEnd; }).length;
+  const pct       = Math.min(100, Math.round((weekCount / goal) * 100));
+  const remaining = Math.max(0, goal - weekCount);
+
+  animateCounter(document.getElementById('hero-num'), weekCount);
+  const badge = document.getElementById('week-count-badge');
+  if (badge) badge.textContent = `${weekCount} 🏋️`;
+  updateHeroRing(pct);
+  updateAvatarRing(pct);
+
+  const subEl  = document.getElementById('hero-sub');
+  const progEl = document.getElementById('hero-prog-text');
+  if (remaining === 0) {
+    if (subEl)  subEl.textContent  = 'השגת את היעד השבועי! 🎉';
+    if (progEl) progEl.textContent = 'כל הכבוד! 🏆';
+    if (!goalWasHit) { goalWasHit = true; setTimeout(launchConfetti, 600); }
+  } else {
+    if (subEl)  subEl.textContent  = 'יאלה, נמשיך!';
+    if (progEl) progEl.textContent = `עוד ${remaining} אימונים לסיום היעד`;
+    goalWasHit = false;
+  }
 }
 
 // ══ PARALLAX / SCROLL ════════════════════════════════════════════════════
@@ -394,6 +510,7 @@ async function submitWorkout() {
     } else {
       await db.collection('workouts').add({
         userId: currentUser.uid, userName: currentUser.displayName || '',
+        userPhotoUrl: userProfile.photoUrl || '',
         type: selectedType, typeEmoji: t.emoji, typeName: t.label,
         date: dateVal, weekKey: dateToWeekKey(dateVal),
         monthKey: dateVal.slice(0, 7), notes: notes || null,
@@ -435,53 +552,25 @@ async function deleteWorkout(wid) {
 }
 
 // ══ HOME ═════════════════════════════════════════════════════════════════
+// cachedUserDocs is kept current by subscribeWorkouts(); this just renders the view
 async function loadHomeView() {
   if (!currentUser) return;
-  const wKey  = weekKey();
-  const goal  = userProfile.goal || 3;
   const name  = currentUser.displayName || 'ספורטאי';
   const first = name.split(/\s+/)[0];
 
-  document.getElementById('header-week-label').textContent = `שבוע ${wKey}`;
-  document.getElementById('hero-denom').textContent        = String(goal);
+  document.getElementById('header-week-label').textContent = `שבוע ${weekKey()}`;
+  document.getElementById('hero-denom').textContent        = String(userProfile.goal || 3);
 
   const greetEl = document.getElementById('hero-greeting');
   if (greetEl) {
     greetEl.innerHTML = `שלום, ${escHtml(first)}! <span class="wave" style="display:inline-block;animation:wave 1.5s ease .3s 1">👋</span>`;
   }
 
-  // Show skeletons while loading
-  document.getElementById('activity-feed').innerHTML = skeletonFeed(3);
-
-  const snap     = await db.collection('workouts').where('userId', '==', currentUser.uid).get();
-  cachedUserDocs = snap.docs.sort((a, b) => b.data().date.localeCompare(a.data().date));
-
-  const weekCount = cachedUserDocs.filter(d => d.data().weekKey === wKey).length;
-  const pct       = Math.min(100, Math.round((weekCount / goal) * 100));
-  const remaining = Math.max(0, goal - weekCount);
-
-  // Animated counter
-  animateCounter(document.getElementById('hero-num'), weekCount);
-  document.getElementById('week-count-badge').textContent = `${weekCount} 🏋️`;
-
-  // Ring fill
-  updateHeroRing(pct);
-  updateAvatarRing(pct);
-
-  if (remaining === 0) {
-    document.getElementById('hero-sub').textContent       = 'השגת את היעד השבועי! 🎉';
-    document.getElementById('hero-prog-text').textContent = 'כל הכבוד! 🏆';
-    if (!goalWasHit) {
-      goalWasHit = true;
-      setTimeout(launchConfetti, 600);
-    }
-  } else {
-    document.getElementById('hero-sub').textContent       = 'יאלה, נמשיך!';
-    document.getElementById('hero-prog-text').textContent = `עוד ${remaining} אימונים לסיום היעד`;
-    goalWasHit = false;
-  }
-
+  // Stats are kept current by the onSnapshot listener — just sync the UI
+  updateWeeklyStats();
   renderProgressChart();
+
+  document.getElementById('activity-feed').innerHTML = skeletonFeed(3);
   loadActivityFeed();
   checkReminder(cachedUserDocs);
   checkAchievements(cachedUserDocs);
@@ -505,17 +594,20 @@ function renderProgressChart() {
 
   if (chartPeriod === 'weekly') {
     for (let i = 7; i >= 0; i--) {
-      const wk = weekKey(-i);
-      const d  = new Date(wk + 'T12:00:00');
+      const wStart = weekKey(-i);
+      const wEnd   = localDateStr(new Date(new Date(wStart + 'T00:00:00').getTime() + 6 * 86400000));
+      const d      = new Date(wStart + 'T12:00:00');
       labels.push(`${d.getDate()}/${d.getMonth() + 1}`);
-      data.push(cachedUserDocs.filter(doc => doc.data().weekKey === wk).length);
+      data.push(cachedUserDocs.filter(doc => { const dt = doc.data().date; return dt >= wStart && dt <= wEnd; }).length);
     }
   } else {
     const now = new Date();
     for (let i = 5; i >= 0; i--) {
-      const d  = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const d      = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const mStart = localDateStr(d);
+      const mEnd   = localDateStr(new Date(d.getFullYear(), d.getMonth() + 1, 0));
       labels.push(hebrewMonths[d.getMonth()]);
-      data.push(cachedUserDocs.filter(doc => doc.data().monthKey === monthKey(d)).length);
+      data.push(cachedUserDocs.filter(doc => { const dt = doc.data().date; return dt >= mStart && dt <= mEnd; }).length);
     }
   }
 
@@ -602,7 +694,7 @@ function renderFeedItem(doc, idx = 0) {
   const isMe = w.userId === currentUser?.uid;
   return `<div class="feed-item" style="animation-delay:${idx * 50}ms">
     <div class="feed-header">
-      <div class="lb-avatar" style="width:40px;height:40px;font-size:14px;flex-shrink:0">${avatarOf(w.userName || '?')}</div>
+      ${avatarHtml(w.userName || '?', w.userPhotoUrl || '', 'lb-avatar', '40')}
       <div class="feed-meta">
         <div class="feed-username">${escHtml(w.userName || 'משתמש')}${isMe ? ' <span style="color:var(--primary);font-size:10px;font-weight:800;background:rgba(255,107,53,.12);padding:2px 7px;border-radius:99px;border:1px solid rgba(255,107,53,.2)">אני</span>' : ''}</div>
         <div class="feed-date">${fmtDate(w.date)}</div>
@@ -670,7 +762,7 @@ async function loadComments(wid) {
     listEl.innerHTML = docs.map(doc => {
       const c = doc.data();
       return `<div class="comment-item">
-        <div class="comment-avatar">${avatarOf(c.userName || '?')}</div>
+        ${avatarHtml(c.userName || '?', c.userPhotoUrl || '', 'comment-avatar')}
         <div class="comment-body">
           <div class="comment-author">${escHtml(c.userName || 'משתמש')}</div>
           <div class="comment-text">${escHtml(c.text)}</div>
@@ -690,7 +782,9 @@ async function addComment(wid) {
   try {
     await db.collection('comments').add({
       workoutId: wid, userId: currentUser.uid,
-      userName: currentUser.displayName || '', text,
+      userName: currentUser.displayName || '',
+      userPhotoUrl: userProfile.photoUrl || '',
+      text,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
     loadComments(wid);
@@ -735,26 +829,36 @@ async function loadLeaderboard() {
   const el = document.getElementById('leaderboard-list');
   el.innerHTML = skeletonLeaderboard(4);
   try {
-    const pKey  = leaderboardPeriod === 'weekly' ? weekKey() : monthKey();
-    const field = leaderboardPeriod === 'weekly' ? 'weekKey' : 'monthKey';
-    const snap  = await db.collection('workouts').where(field, '==', pKey).get();
-    const counts = {}, names = {};
+    let snap;
+    if (leaderboardPeriod === 'weekly') {
+      const wStart = weekKey();
+      const wEnd   = localDateStr(new Date(new Date(wStart + 'T00:00:00').getTime() + 6 * 86400000));
+      snap = await db.collection('workouts').where('date', '>=', wStart).where('date', '<=', wEnd).get();
+    } else {
+      const now    = new Date();
+      const mStart = localDateStr(new Date(now.getFullYear(), now.getMonth(), 1));
+      const mEnd   = localDateStr(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+      snap = await db.collection('workouts').where('date', '>=', mStart).where('date', '<=', mEnd).get();
+    }
+    const counts = {}, names = {}, photoUrls = {};
     snap.docs.forEach(doc => {
       const w = doc.data();
       counts[w.userId] = (counts[w.userId] || 0) + 1;
-      if (!names[w.userId]) names[w.userId] = w.userName || 'משתמש';
+      if (!names[w.userId])     names[w.userId]     = w.userName || 'משתמש';
+      if (!photoUrls[w.userId] && w.userPhotoUrl) photoUrls[w.userId] = w.userPhotoUrl;
     });
     const myGroup = new Set([currentUser.uid, ...(userProfile.friendIds || [])]);
     const sorted  = Object.entries(counts)
       .filter(([uid]) => myGroup.has(uid))
       .sort((a, b) => b[1] - a[1]);
-    renderLeaderboard(sorted, names);
+    renderLeaderboard(sorted, names, photoUrls);
   } catch (err) {
     el.innerHTML = '<div class="empty-state">שגיאה בטעינת הליגה</div>';
+    console.error(err);
   }
 }
 
-function renderLeaderboard(sorted, names) {
+function renderLeaderboard(sorted, names, photoUrls = {}) {
   const el = document.getElementById('leaderboard-list');
   if (!sorted.length) {
     el.innerHTML = `<div class="empty-state"><div class="empty-icon">🏆</div>אין אימונים בתקופה זו<br><small style="font-size:13px">הוסף חברים לליגה</small></div>`;
@@ -769,7 +873,7 @@ function renderLeaderboard(sorted, names) {
     const rank = i < 3 ? medals[i] : `<span class="lb-rank-num">${i + 1}</span>`;
     return `<div class="lb-row${isMe ? ' me' : ''}" style="animation-delay:${i * 60}ms">
       <div class="lb-rank">${rank}</div>
-      <div class="lb-avatar">${avatarOf(name)}</div>
+      ${avatarHtml(name, photoUrls[uid] || '')}
       <div class="lb-info">
         <div class="lb-name">${escHtml(name)}${isMe ? ' <span class="lb-me-tag">אני</span>' : ''}</div>
         <div class="lb-prog"><div class="lb-prog-fill" style="width:0%" data-target="${pct}"></div></div>
@@ -818,7 +922,9 @@ async function sendFriendRequest() {
     await db.collection('friendRequests').add({
       fromUid: currentUser.uid, fromName: currentUser.displayName || '',
       fromEmail: currentUser.email || '',
+      fromPhotoUrl: userProfile.photoUrl || '',
       toUid: targetUid, toName: targetData.name || '', toEmail: email,
+      toPhotoUrl: targetData.photoUrl || '',
       status: 'pending',
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
@@ -844,7 +950,7 @@ async function loadFriendRequests() {
       incoming.map(doc => {
         const r = doc.data();
         return `<div class="friend-req-item">
-          <div class="lb-avatar" style="width:42px;height:42px">${avatarOf(r.fromName)}</div>
+          ${avatarHtml(r.fromName, r.fromPhotoUrl || '', 'lb-avatar', '42')}
           <div class="friend-info">
             <div class="friend-name">${escHtml(r.fromName || 'משתמש')}</div>
             <div class="friend-email">${escHtml(r.fromEmail)}</div>
@@ -858,7 +964,7 @@ async function loadFriendRequests() {
       outgoing.map(doc => {
         const r = doc.data();
         return `<div class="friend-req-item">
-          <div class="lb-avatar" style="width:42px;height:42px">${avatarOf(r.toName)}</div>
+          ${avatarHtml(r.toName || r.toEmail, r.toPhotoUrl || '', 'lb-avatar', '42')}
           <div class="friend-info">
             <div class="friend-name">${escHtml(r.toName || r.toEmail)}</div>
             <div class="friend-email">${escHtml(r.toEmail)}</div>
@@ -910,7 +1016,7 @@ async function loadFriendsList() {
     el.innerHTML = docs.filter(d => d.exists).map(doc => {
       const u = doc.data();
       return `<div class="friend-item">
-        <div class="lb-avatar" style="width:42px;height:42px">${avatarOf(u.name)}</div>
+        ${avatarHtml(u.name, u.photoUrl || '', 'lb-avatar', '42')}
         <div class="friend-info">
           <div class="friend-name">${escHtml(u.name || 'משתמש')}</div>
           <div class="friend-email">${escHtml(u.email || '')}</div>
@@ -1074,11 +1180,17 @@ function renderBadges(badges) {
 // ══ SETTINGS ═════════════════════════════════════════════════════════════
 function renderSettings() {
   if (!currentUser) return;
-  const name = currentUser.displayName || 'ספורטאי';
-  document.getElementById('settings-name').textContent   = name;
-  document.getElementById('settings-email').textContent  = currentUser.email;
-  document.getElementById('settings-avatar').textContent = avatarOf(name);
-  document.getElementById('goal-display').textContent    = userProfile.goal || 3;
+  const name     = currentUser.displayName || 'ספורטאי';
+  const photoUrl = userProfile.photoUrl || currentUser.photoURL || '';
+  document.getElementById('settings-name').textContent  = name;
+  document.getElementById('settings-email').textContent = currentUser.email;
+  const avatarEl = document.getElementById('settings-avatar');
+  if (photoUrl) {
+    avatarEl.innerHTML = `<img src="${escHtml(photoUrl)}" alt="${escHtml(avatarOf(name))}" style="width:100%;height:100%;object-fit:cover;display:block;border-radius:50%" onerror="this.parentElement.textContent='${escHtml(avatarOf(name))}'">`;
+  } else {
+    avatarEl.textContent = avatarOf(name);
+  }
+  document.getElementById('goal-display').textContent = userProfile.goal || 3;
   renderBadges(userProfile.badges);
   initRipples();
 }
@@ -1133,23 +1245,22 @@ auth.onAuthStateChanged(async user => {
     currentUser = user;
     await loadUserProfile();
 
-    document.getElementById('user-avatar').textContent = avatarOf(user.displayName || '?');
+    setHeaderAvatar();
     if (userProfile.notifications) document.getElementById('notif-toggle').checked = true;
 
     document.getElementById('auth-screen').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
 
-    // Init UI chrome
     initScrollEffects();
-    setTimeout(() => {
-      moveNavIndicator('home');
-      initRipples();
-    }, 50);
+    setTimeout(() => { moveNavIndicator('home'); initRipples(); }, 50);
 
-    loadHomeView();
+    // Subscribe to workouts; load home once first snapshot arrives
+    subscribeWorkouts(() => loadHomeView());
 
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
   } else {
+    // Tear down listener
+    if (workoutsUnsubscribe) { workoutsUnsubscribe(); workoutsUnsubscribe = null; }
     currentUser = null; userProfile = { goal: 3, friendIds: [], badges: [] };
     reminderDismissed = false; cachedUserDocs = []; goalWasHit = false; currentTab = 'home';
     if (progressChart) { progressChart.destroy(); progressChart = null; }
