@@ -1417,8 +1417,7 @@ const seenStories = new Set(JSON.parse(localStorage.getItem('seenStories') || '[
 let storyDocs = [], storyIndex = 0, storyTimer = null;
 let storyPaused = false, storyRemaining = 10000, storyStartTime = 0;
 let storyPointerStartX = 0, storyPointerStartY = 0, storyLongPressTimer = null;
-let storyViewersDragging = false;
-let storyDraggingDown    = false;
+let storyGestureDir = null; // null | 'up' | 'down'  — locked for the lifetime of one touch
 
 async function loadStories() {
   const el = document.getElementById('stories-scroll');
@@ -1552,7 +1551,9 @@ function resumeStory() {
 function onStoryPointerDown(e) {
   storyPointerStartX = e.clientX;
   storyPointerStartY = e.clientY;
-  if (e.target.closest('.story-close, .story-top')) return;
+  storyGestureDir    = null;
+  // Only skip long-press for buttons/inputs — still record position for swipe-down anywhere
+  if (e.target.closest('.story-close, .story-reply-bar, .story-views-row')) return;
   storyLongPressTimer = setTimeout(() => {
     storyLongPressTimer = null;
     pauseStory();
@@ -1560,44 +1561,62 @@ function onStoryPointerDown(e) {
 }
 
 function onStoryPointerMove(e) {
-  const dy_up   = storyPointerStartY - e.clientY;
-  const dy_down = e.clientY - storyPointerStartY;
+  const dy_up   = storyPointerStartY - e.clientY;   // positive = finger moved up
+  const dy_down = e.clientY - storyPointerStartY;   // positive = finger moved down
   const dx      = Math.abs(e.clientX - storyPointerStartX);
 
-  // Upward swipe → open viewers (only when not already dragging down)
-  if (!storyDraggingDown && !storyViewersDragging && dy_up >= 50 && dx < 60) {
-    storyViewersDragging = true;
-    clearTimeout(storyLongPressTimer);
-    storyLongPressTimer = null;
+  // Direction not yet locked — detect it from first significant movement
+  if (!storyGestureDir) {
+    if (dy_up > 10 && dx < 60) {
+      const w = storyDocs[storyIndex]?.data();
+      if (w && w.userId === currentUser?.uid) {
+        storyGestureDir = 'up';
+      } else {
+        // Not own story — no viewers to show; clear timer so it doesn't count as long-press
+        clearTimeout(storyLongPressTimer); storyLongPressTimer = null;
+        return;
+      }
+    } else if (dy_down > 10 && dx < 80) {
+      storyGestureDir = 'down';
+    } else {
+      return; // tiny movement, keep waiting
+    }
+    clearTimeout(storyLongPressTimer); storyLongPressTimer = null;
     pauseStory();
-    openStoryViewers();
+    // falls through to direction handler below
+  }
+
+  if (storyGestureDir === 'up') {
+    const sheet  = document.getElementById('story-viewers-sheet');
+    const inner  = document.getElementById('story-viewers-inner');
+    const sheetH = 0.6 * window.innerHeight;
+    if (sheet.classList.contains('hidden')) {
+      // First move: show panel off-screen and start loading data
+      inner.style.transition = 'none';
+      inner.style.transform  = `translateY(${sheetH}px)`;
+      sheet.classList.remove('hidden');
+      _loadViewersData(); // async — fills the list while user drags
+    }
+    // Panel follows the finger (clamped so it doesn't go above its natural position)
+    inner.style.transform = `translateY(${Math.max(0, sheetH - dy_up)}px)`;
     return;
   }
 
-  // Downward drag → swipe-to-close (only when not dragging up)
-  if (!storyViewersDragging && dy_down > 0 && dx < 80) {
-    if (!storyDraggingDown && dy_down > 12) {
-      storyDraggingDown = true;
-      clearTimeout(storyLongPressTimer);
-      storyLongPressTimer = null;
-      pauseStory();
-    }
-    if (storyDraggingDown) {
-      const overlay  = document.getElementById('story-overlay');
-      const progress = Math.min(dy_down / window.innerHeight, 1);
-      overlay.style.transform = `translateY(${dy_down}px)`;
-      overlay.style.opacity   = `${Math.max(0.2, 1 - progress * 1.5)}`;
-    }
+  if (storyGestureDir === 'down') {
+    const overlay  = document.getElementById('story-overlay');
+    const progress = Math.min(dy_down / window.innerHeight, 1);
+    overlay.style.transform = `translateY(${dy_down}px)`;
+    overlay.style.opacity   = `${Math.max(0.2, 1 - progress * 1.5)}`;
   }
 }
 
 function onStoryPointerUp(e) {
-  // Downward drag release
-  if (storyDraggingDown) {
-    storyDraggingDown = false;
-    const dy_down   = e.clientY - storyPointerStartY;
-    const threshold = Math.min(80, window.innerHeight * 0.3);
-    const overlay   = document.getElementById('story-overlay');
+  // ── Downward drag release ──
+  if (storyGestureDir === 'down') {
+    storyGestureDir  = null;
+    const dy_down    = e.clientY - storyPointerStartY;
+    const threshold  = Math.min(80, window.innerHeight * 0.3);
+    const overlay    = document.getElementById('story-overlay');
     if (dy_down >= threshold) {
       overlay.style.transition = 'transform .25s ease, opacity .25s ease';
       overlay.style.transform  = `translateY(${window.innerHeight}px)`;
@@ -1613,10 +1632,32 @@ function onStoryPointerUp(e) {
     return;
   }
 
-  // Upward swipe already handled in pointermove
-  if (storyViewersDragging) { storyViewersDragging = false; return; }
+  // ── Upward drag release ──
+  if (storyGestureDir === 'up') {
+    storyGestureDir  = null;
+    const dy_up      = storyPointerStartY - e.clientY;
+    const sheetH     = 0.6 * window.innerHeight;
+    const sheet      = document.getElementById('story-viewers-sheet');
+    const inner      = document.getElementById('story-viewers-inner');
+    if (dy_up >= window.innerHeight * 0.25) {
+      // Snap fully open
+      inner.style.transition = 'transform .25s ease';
+      inner.style.transform  = 'translateY(0)';
+    } else {
+      // Snap closed
+      inner.style.transition = 'transform .2s ease';
+      inner.style.transform  = `translateY(${sheetH}px)`;
+      setTimeout(() => {
+        sheet.classList.add('hidden');
+        inner.style.transition = '';
+        inner.style.transform  = '';
+      }, 210);
+      resumeStory();
+    }
+    return;
+  }
 
-  // Let interactive controls handle themselves
+  // ── Interactive controls — let them handle their own events ──
   if (e.target.closest('.story-close, .story-views-row, .story-top, .story-reply-bar')) {
     clearTimeout(storyLongPressTimer);
     storyLongPressTimer = null;
@@ -1624,27 +1665,40 @@ function onStoryPointerUp(e) {
   }
 
   if (storyLongPressTimer) {
-    // Short tap: RIGHT = restart current story, LEFT = advance to older story
+    // Short tap: LEFT = older story, RIGHT = newer story (restart if already at newest)
     clearTimeout(storyLongPressTimer);
     storyLongPressTimer = null;
-    if (e.clientX < window.innerWidth / 2) showStoryAt(storyIndex + 1);
-    else showStoryAt(storyIndex);
+    if (e.clientX < window.innerWidth / 2) {
+      showStoryAt(storyIndex + 1);                                    // older
+    } else {
+      showStoryAt(storyIndex > 0 ? storyIndex - 1 : storyIndex);     // newer or restart
+    }
   } else {
-    // Long press release → resume
     if (storyPaused) resumeStory();
   }
 }
 
 function onStoryPointerCancel() {
-  if (storyDraggingDown) {
-    storyDraggingDown = false;
+  if (storyGestureDir === 'down') {
     const overlay = document.getElementById('story-overlay');
     overlay.style.transition = 'transform .2s ease, opacity .2s ease';
     overlay.style.transform  = '';
     overlay.style.opacity    = '';
     setTimeout(() => { overlay.style.transition = ''; }, 210);
   }
-  storyViewersDragging = false;
+  if (storyGestureDir === 'up') {
+    const sheet  = document.getElementById('story-viewers-sheet');
+    const inner  = document.getElementById('story-viewers-inner');
+    const sheetH = 0.6 * window.innerHeight;
+    inner.style.transition = 'transform .2s ease';
+    inner.style.transform  = `translateY(${sheetH}px)`;
+    setTimeout(() => {
+      sheet.classList.add('hidden');
+      inner.style.transition = '';
+      inner.style.transform  = '';
+    }, 210);
+  }
+  storyGestureDir = null;
   clearTimeout(storyLongPressTimer);
   storyLongPressTimer = null;
   const sheet = document.getElementById('story-viewers-sheet');
@@ -1664,22 +1718,41 @@ async function recordStoryView(docId) {
   } catch (e) {}
 }
 
+// Called from the views-row click button — animated open from bottom
 async function openStoryViewers() {
   pauseStory();
   if (storyIndex >= storyDocs.length) return;
   const w = storyDocs[storyIndex].data();
   if (w.userId !== currentUser.uid) return;
 
-  const sheet = document.getElementById('story-viewers-sheet');
-  const list  = document.getElementById('story-viewers-list');
-  sheet.classList.remove('hidden');
-  list.innerHTML = '<div class="viewers-loading">טוען...</div>';
+  const sheet  = document.getElementById('story-viewers-sheet');
+  const inner  = document.getElementById('story-viewers-inner');
+  const sheetH = 0.6 * window.innerHeight;
 
+  inner.style.transition = 'none';
+  inner.style.transform  = `translateY(${sheetH}px)`;
+  sheet.classList.remove('hidden');
+  // Double rAF so the browser paints the initial off-screen state before transitioning
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    inner.style.transition = 'transform .3s ease';
+    inner.style.transform  = 'translateY(0)';
+  }));
+
+  await _loadViewersData();
+}
+
+// Loads viewer data and renders list — called from both click and swipe gesture
+async function _loadViewersData() {
+  const list = document.getElementById('story-viewers-list');
+  if (!list) return;
+  if (storyIndex >= storyDocs.length) return;
+  const w = storyDocs[storyIndex].data();
+  if (w.userId !== currentUser?.uid) return;
+  list.innerHTML = '<div class="viewers-loading">טוען...</div>';
   try {
-    const fresh    = await storyDocs[storyIndex].ref.get();
-    const raw      = fresh.data().storyViews || {};
-    // Support both old array format and new map format
-    const viewMap  = Array.isArray(raw)
+    const fresh   = await storyDocs[storyIndex].ref.get();
+    const raw     = fresh.data().storyViews || {};
+    const viewMap = Array.isArray(raw)
       ? raw.reduce((m, v) => { m[v.uid] = v; return m; }, {})
       : raw;
 
@@ -1688,33 +1761,21 @@ async function openStoryViewers() {
       list.innerHTML = '<div class="viewers-empty">אין חברים עדיין</div>';
       return;
     }
-
     const friendDocs = await Promise.all(
       friendIds.map(uid => db.collection('users').doc(uid).get())
     );
-
     const friends = friendDocs.filter(d => d.exists).map(d => {
       const fd = d.data();
-      return {
-        uid:     d.id,
-        name:    fd.name || fd.displayName || 'משתמש',
-        photo:   fd.photoUrl || '',
-        view:    viewMap[d.id] || null,
-      };
+      return { uid: d.id, name: fd.name || fd.displayName || 'משתמש', photo: fd.photoUrl || '', view: viewMap[d.id] || null };
     });
-
-    // Viewers first (most recent), non-viewers at bottom
     friends.sort((a, b) => {
       if (a.view && !b.view) return -1;
       if (!a.view && b.view) return 1;
       if (a.view && b.view) {
-        const ta = a.view.viewedAt?.toMillis?.() || 0;
-        const tb = b.view.viewedAt?.toMillis?.() || 0;
-        return tb - ta;
+        return (b.view.viewedAt?.toMillis?.() || 0) - (a.view.viewedAt?.toMillis?.() || 0);
       }
       return 0;
     });
-
     list.innerHTML = friends.map(f => `
       <div class="viewers-item">
         ${avatarHtml(f.name, f.photo, 'lb-avatar', '44')}
@@ -1726,21 +1787,28 @@ async function openStoryViewers() {
         </div>
         ${f.view ? '<div class="viewers-check">✓</div>' : ''}
       </div>`).join('');
-
   } catch (err) {
-    console.error('openStoryViewers:', err);
+    console.error('_loadViewersData:', err);
     list.innerHTML = '<div class="viewers-empty">שגיאה בטעינה</div>';
   }
 }
 
 function closeStoryViewers() {
-  document.getElementById('story-viewers-sheet').classList.add('hidden');
+  const sheet  = document.getElementById('story-viewers-sheet');
+  const inner  = document.getElementById('story-viewers-inner');
+  const sheetH = 0.6 * window.innerHeight;
+  inner.style.transition = 'transform .25s ease';
+  inner.style.transform  = `translateY(${sheetH}px)`;
+  setTimeout(() => {
+    sheet.classList.add('hidden');
+    inner.style.transition = '';
+    inner.style.transform  = '';
+  }, 260);
   resumeStory();
 }
 
 function closeStory() {
-  storyViewersDragging = false;
-  storyDraggingDown    = false;
+  storyGestureDir = null;
   if (storyLongPressTimer) { clearTimeout(storyLongPressTimer); storyLongPressTimer = null; }
   if (storyTimer)          { clearTimeout(storyTimer); storyTimer = null; }
   storyPaused = false;

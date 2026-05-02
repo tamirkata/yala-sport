@@ -677,7 +677,7 @@ textarea.form-input { resize: none; }
 .story-time-ago { font-size: 9px; color: var(--text-3); text-align: center; margin-top: -2px; }
 .story-overlay {
   position: fixed; inset: 0; z-index: 500; background: #000;
-  display: flex; flex-direction: column; user-select: none;
+  display: flex; flex-direction: column; user-select: none; touch-action: none;
 }
 .story-overlay.hidden { display: none; }
 .story-progress-bar { height: 3px; background: rgba(255,255,255,.25); flex-shrink: 0; }
@@ -1371,7 +1371,7 @@ textarea.form-input { resize: none; }
 
 <!-- STORY VIEWERS SHEET -->
 <div class="story-viewers-sheet hidden" id="story-viewers-sheet" onclick="if(event.target===this)closeStoryViewers()">
-  <div class="story-viewers-inner">
+  <div class="story-viewers-inner" id="story-viewers-inner">
     <div class="story-viewers-title">👁 מי צפה</div>
     <div id="story-viewers-list"></div>
   </div>
