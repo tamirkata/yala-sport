@@ -24,7 +24,10 @@ service cloud.firestore {
     match /workouts/{id} {
       allow read:   if isAuth();
       allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
-      allow update: if isAuth() && resource.data.userId == request.auth.uid;
+      allow update: if isAuth() && (
+        resource.data.userId == request.auth.uid ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likedBy'])
+      );
       allow delete: if isAuth() && resource.data.userId == request.auth.uid;
     }
 

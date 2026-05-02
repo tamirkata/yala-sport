@@ -79,8 +79,9 @@ input, textarea, select { font-family: inherit; }
 @keyframes spin       { to { transform:rotate(360deg); } }
 @keyframes fadeUp     { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
 @keyframes popIn      { 0%{transform:scale(.6);opacity:0}70%{transform:scale(1.12)}100%{transform:scale(1);opacity:1} }
-@keyframes glowPulse  { 0%,100%{box-shadow:0 0 12px rgba(255,107,53,.3)} 50%{box-shadow:0 0 28px rgba(255,107,53,.65)} }
-@keyframes orbFloat   { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-20px) scale(1.05)} }
+@keyframes glowPulse      { 0%,100%{box-shadow:0 0 12px rgba(255,107,53,.3)} 50%{box-shadow:0 0 28px rgba(255,107,53,.65)} }
+@keyframes orbFloat       { 0%,100%{transform:translateY(0) scale(1)} 50%{transform:translateY(-20px) scale(1.05)} }
+@keyframes likeHeartbeat  { 0%{transform:scale(1)} 30%{transform:scale(1.45)} 60%{transform:scale(.9)} 100%{transform:scale(1)} }
 
 /* ══ AUTH SCREEN ════════════════════════════════════════════════════════ */
 #auth-screen {
@@ -419,6 +420,23 @@ textarea.form-input { resize: none; }
 .feed-actions-right { display: flex; gap: 2px; margin-right: auto; }
 .feed-icon-btn { font-size: 15px; padding: 5px 7px; border-radius: var(--r-s); color: var(--text-3); transition: background .15s; }
 .feed-icon-btn:hover { background: var(--glass-hi); }
+.like-btn {
+  font-size: 13px; font-weight: 700; color: var(--text-3);
+  display: flex; align-items: center; gap: 5px; padding: 4px 10px;
+  border-radius: 99px; border: 1px solid transparent; transition: all .2s;
+}
+.like-btn.liked { color: var(--primary); background: rgba(255,107,53,.1); border-color: rgba(255,107,53,.25); }
+.feed-duration {
+  display: inline-flex; align-items: center;
+  background: rgba(255,255,255,.05); border: 1px solid var(--border);
+  padding: 4px 10px; border-radius: 99px;
+  font-size: 12px; font-weight: 700; color: var(--text-3);
+}
+.feed-me-tag {
+  color: var(--primary); font-size: 10px; font-weight: 800;
+  background: rgba(255,107,53,.12); padding: 2px 7px;
+  border-radius: 99px; border: 1px solid rgba(255,107,53,.2);
+}
 
 /* ══ COMMENTS ═══════════════════════════════════════════════════════════ */
 .comments-section { margin-top: 12px; border-top: 1px solid var(--border); padding-top: 12px; }
@@ -914,12 +932,18 @@ textarea.form-input { resize: none; }
     </div>
     <div class="form-label">סוג אימון</div>
     <div class="type-grid" id="type-grid"></div>
-    <div class="form-group">
-      <label class="form-label">תאריך</label>
-      <input class="form-input" type="date" id="workout-date">
+    <div style="display:flex;gap:10px">
+      <div class="form-group" style="flex:1">
+        <label class="form-label">תאריך</label>
+        <input class="form-input" type="date" id="workout-date">
+      </div>
+      <div class="form-group" style="flex:1">
+        <label class="form-label">משך (דקות)</label>
+        <input class="form-input" type="number" id="workout-duration" min="1" max="600" placeholder="60">
+      </div>
     </div>
     <div class="form-group">
-      <label class="form-label">הערות (אופציונלי)</label>
+      <label class="form-label">תיאור / קפשן ✍️ (אופציונלי)</label>
       <textarea class="form-input" id="workout-notes" rows="3" placeholder="איך היה האימון? 🔥"></textarea>
     </div>
     <button class="btn-primary btn-full" id="submit-workout-btn" onclick="submitWorkout()">שמור אימון ✓</button>

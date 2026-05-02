@@ -10,6 +10,7 @@ const WORKOUT_TYPES = [
   { key: 'other',      emoji: '💪', label: 'אחר'        },
 ];
 const FINE_PER_WORKOUT = 10;
+const FEED_PAGE        = 10;
 const ACHIEVEMENTS = [
   { key: 'first_workout', emoji: '🏅', label: 'אימון\nראשון'  },
   { key: 'streak_7',      emoji: '🔥', label: '7 ימים\nרצוף'  },
@@ -42,6 +43,10 @@ let cachedUserDocs       = [];
 let goalWasHit           = false;
 let currentTab           = 'home';
 let workoutsUnsubscribe  = null;
+let feedAllDocs          = [];
+let feedOffset           = 0;
+let feedObserver         = null;
+const commentListeners   = {};
 
 // ══ ANIMATION UTILITIES ══════════════════════════════════════════════════
 function animateCounter(el, target, duration = 700) {
@@ -209,6 +214,7 @@ function switchTab(tab) {
   const fabWrap = document.getElementById('fab-wrap');
   if (fabWrap) fabWrap.classList.toggle('hidden', tab !== 'home');
 
+  if (tab === 'home')        loadHomeView();
   if (tab === 'leaderboard') loadLeaderboard();
   if (tab === 'fines')       loadFines();
   if (tab === 'settings')    renderSettings();
@@ -269,6 +275,50 @@ function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// Returns relative time in Hebrew; ts can be a Firestore Timestamp or Date-like
+function timeAgo(ts) {
+  if (!ts) return '';
+  const then = ts.toMillis ? ts.toMillis() : (ts.seconds ? ts.seconds * 1000 : new Date(ts).getTime());
+  const diff = Math.floor((Date.now() - then) / 1000);
+  if (diff < 60)    return 'עכשיו';
+  if (diff < 3600)  return `לפני ${Math.floor(diff / 60)} דקות`;
+  if (diff < 86400) return `לפני ${Math.floor(diff / 3600)} שעות`;
+  if (diff < 172800) return 'אתמול';
+  return `לפני ${Math.floor(diff / 86400)} ימים`;
+}
+
+// Compresses an image file to maxDimPx × maxDimPx and under maxKB, using Canvas
+async function compressImage(file, maxDimPx, maxKB) {
+  return new Promise(resolve => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      let { width, height } = img;
+      if (width > maxDimPx || height > maxDimPx) {
+        const ratio = Math.min(maxDimPx / width, maxDimPx / height);
+        width  = Math.round(width  * ratio);
+        height = Math.round(height * ratio);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      let quality = 0.9;
+      function tryCompress() {
+        canvas.toBlob(blob => {
+          if (!blob) { resolve(file); return; }
+          if (blob.size <= maxKB * 1024 || quality <= 0.3) {
+            resolve(new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' }));
+          } else { quality -= 0.1; tryCompress(); }
+        }, 'image/jpeg', quality);
+      }
+      tryCompress();
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.src = url;
+  });
+}
+
 // ══ AVATAR HELPERS ═══════════════════════════════════════════════════════
 // Returns HTML for an avatar: photo <img> when available, initials otherwise
 function avatarHtml(name, photoUrl, cls = 'lb-avatar', size = '') {
@@ -303,12 +353,12 @@ function setHeaderAvatar() {
 async function uploadProfilePhoto(file) {
   if (!file) return;
   if (!storage) { toast('Firebase Storage לא זמין — בדוק הגדרות פרויקט', 'error'); return; }
-  if (file.size > 5 * 1024 * 1024) { toast('התמונה גדולה מדי (מקסימום 5MB)', 'error'); return; }
   const wrap = document.getElementById('settings-avatar-wrap');
   if (wrap) wrap.style.opacity = '0.45';
   try {
-    const ref      = storage.ref(`avatars/${currentUser.uid}/profile`);
-    await ref.put(file, { contentType: file.type });
+    const compressed = await compressImage(file, 400, 200);
+    const ref        = storage.ref(`avatars/${currentUser.uid}/profile`);
+    await ref.put(compressed, { contentType: 'image/jpeg' });
     const photoUrl = await ref.getDownloadURL();
     await currentUser.updateProfile({ photoURL: photoUrl });
     await db.collection('users').doc(currentUser.uid).update({ photoUrl });
@@ -456,8 +506,9 @@ function openWorkoutModal(workoutData = null, workoutId = null) {
   editingWorkoutId = workoutId;
   const isEdit = !!workoutData;
   selectedType = isEdit ? workoutData.type : '';
-  document.getElementById('workout-date').value  = isEdit ? workoutData.date : new Date().toISOString().slice(0, 10);
-  document.getElementById('workout-notes').value = isEdit ? (workoutData.notes || '') : '';
+  document.getElementById('workout-date').value     = isEdit ? workoutData.date : localDateStr(new Date());
+  document.getElementById('workout-duration').value = isEdit ? (workoutData.duration || '') : '';
+  document.getElementById('workout-notes').value    = isEdit ? (workoutData.notes || '') : '';
   document.getElementById('modal-title').textContent = isEdit ? 'ערוך אימון ✏️' : 'רשום אימון 💪';
   document.getElementById('delete-workout-btn').classList.toggle('hidden', !isEdit);
   document.getElementById('submit-workout-btn').textContent = isEdit ? 'עדכן אימון ✓' : 'שמור אימון ✓';
@@ -495,16 +546,17 @@ async function submitWorkout() {
   if (!selectedType) { toast('בחר סוג אימון', 'error'); return; }
   const dateVal = document.getElementById('workout-date').value;
   if (!dateVal)  { toast('בחר תאריך', 'error'); return; }
-  const notes = document.getElementById('workout-notes').value.trim();
-  const t     = WORKOUT_TYPES.find(x => x.key === selectedType);
-  const btn   = document.getElementById('submit-workout-btn');
+  const notes    = document.getElementById('workout-notes').value.trim();
+  const duration = parseInt(document.getElementById('workout-duration').value) || null;
+  const t        = WORKOUT_TYPES.find(x => x.key === selectedType);
+  const btn      = document.getElementById('submit-workout-btn');
   btn.disabled = true; btn.textContent = 'שומר...';
   try {
     if (editingWorkoutId) {
       await db.collection('workouts').doc(editingWorkoutId).update({
         type: selectedType, typeEmoji: t.emoji, typeName: t.label,
         date: dateVal, weekKey: dateToWeekKey(dateVal),
-        monthKey: dateVal.slice(0, 7), notes: notes || null,
+        monthKey: dateVal.slice(0, 7), notes: notes || null, duration,
       });
       toast('האימון עודכן ✓', 'success');
     } else {
@@ -513,7 +565,8 @@ async function submitWorkout() {
         userPhotoUrl: userProfile.photoUrl || '',
         type: selectedType, typeEmoji: t.emoji, typeName: t.label,
         date: dateVal, weekKey: dateToWeekKey(dateVal),
-        monthKey: dateVal.slice(0, 7), notes: notes || null,
+        monthKey: dateVal.slice(0, 7), notes: notes || null, duration,
+        likedBy: [],
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       });
       toast('האימון נרשם! 💪', 'success');
@@ -658,55 +711,96 @@ function renderProgressChart() {
 }
 
 // ══ ACTIVITY FEED ════════════════════════════════════════════════════════
-async function loadActivityFeed() {
+async function loadActivityFeed(reset = true) {
   const el = document.getElementById('activity-feed');
+  if (reset) {
+    feedAllDocs = []; feedOffset = 0;
+    if (feedObserver) { feedObserver.disconnect(); feedObserver = null; }
+    Object.values(commentListeners).forEach(u => u());
+    Object.keys(commentListeners).forEach(k => delete commentListeners[k]);
+    el.innerHTML = skeletonFeed(3);
+  }
   try {
     const friendIds = userProfile.friendIds || [];
     const allUids   = [currentUser.uid, ...friendIds].slice(0, 10);
     const snaps     = await Promise.all(
       allUids.map(uid => db.collection('workouts').where('userId', '==', uid).get())
     );
-    const allDocs = snaps
+    feedAllDocs = snaps
       .flatMap(s => s.docs)
       .sort((a, b) => {
         const ta = a.data().createdAt?.toMillis?.() || new Date(a.data().date + 'T12:00:00').getTime();
         const tb = b.data().createdAt?.toMillis?.() || new Date(b.data().date + 'T12:00:00').getTime();
         return tb - ta;
-      })
-      .slice(0, 20);
-
-    if (!allDocs.length) {
+      });
+    if (!feedAllDocs.length) {
       el.innerHTML = `<div class="empty-state"><div class="empty-icon">👥</div>אין פעילות עדיין<br><small style="font-size:13px;color:var(--text-3)">הוסף חברים כדי לראות את הפעילות שלהם</small></div>`;
       return;
     }
-    el.innerHTML = allDocs.map((doc, i) => renderFeedItem(doc, i)).join('');
-    loadCommentCounts(allDocs.map(d => d.id));
-    initRipples();
+    el.innerHTML = '';
+    renderFeedPage();
   } catch (err) {
     el.innerHTML = '<div class="empty-state">שגיאה בטעינת הפעילות</div>';
     console.error(err);
   }
 }
 
+function renderFeedPage() {
+  const el    = document.getElementById('activity-feed');
+  const slice = feedAllDocs.slice(feedOffset, feedOffset + FEED_PAGE);
+  if (!slice.length) return;
+  const wids = slice.map(d => d.id);
+  el.insertAdjacentHTML('beforeend', slice.map((doc, i) => renderFeedItem(doc, feedOffset + i)).join(''));
+  feedOffset += FEED_PAGE;
+  loadCommentCounts(wids);
+  initRipples();
+  // Sentinel for next page
+  const oldSentinel = el.querySelector('.feed-sentinel');
+  if (oldSentinel) oldSentinel.remove();
+  if (feedOffset < feedAllDocs.length) {
+    const sentinel = document.createElement('div');
+    sentinel.className = 'feed-sentinel';
+    sentinel.style.cssText = 'height:1px;margin:4px 0';
+    el.appendChild(sentinel);
+    if (feedObserver) feedObserver.disconnect();
+    feedObserver = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting) {
+        feedObserver.disconnect(); feedObserver = null;
+        renderFeedPage();
+      }
+    }, { rootMargin: '200px' });
+    feedObserver.observe(sentinel);
+  }
+}
+
 function renderFeedItem(doc, idx = 0) {
-  const w    = doc.data();
-  const wid  = doc.id;
-  const isMe = w.userId === currentUser?.uid;
+  const w        = doc.data();
+  const wid      = doc.id;
+  const isMe     = w.userId === currentUser?.uid;
+  const likedBy  = w.likedBy || [];
+  const liked    = likedBy.includes(currentUser?.uid);
+  const tsStr    = w.createdAt ? timeAgo(w.createdAt) : fmtDate(w.date);
   return `<div class="feed-item" style="animation-delay:${idx * 50}ms">
     <div class="feed-header">
       ${avatarHtml(w.userName || '?', w.userPhotoUrl || '', 'lb-avatar', '40')}
       <div class="feed-meta">
-        <div class="feed-username">${escHtml(w.userName || 'משתמש')}${isMe ? ' <span style="color:var(--primary);font-size:10px;font-weight:800;background:rgba(255,107,53,.12);padding:2px 7px;border-radius:99px;border:1px solid rgba(255,107,53,.2)">אני</span>' : ''}</div>
-        <div class="feed-date">${fmtDate(w.date)}</div>
+        <div class="feed-username">${escHtml(w.userName || 'משתמש')}${isMe ? ' <span class="feed-me-tag">אני</span>' : ''}</div>
+        <div class="feed-date">${tsStr}</div>
       </div>
       ${isMe ? `<div class="feed-actions-right">
         <button class="feed-icon-btn" onclick="editWorkout('${wid}')">✏️</button>
         <button class="feed-icon-btn" onclick="confirmDeleteWorkout('${wid}')">🗑️</button>
       </div>` : ''}
     </div>
-    <div><span class="feed-pill">${w.typeEmoji || '💪'} ${escHtml(w.typeName || w.type)}</span></div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+      <span class="feed-pill">${w.typeEmoji || '💪'} ${escHtml(w.typeName || w.type)}</span>
+      ${w.duration ? `<span class="feed-duration">⏱ ${w.duration} דק׳</span>` : ''}
+    </div>
     ${w.notes ? `<div class="feed-notes">${escHtml(w.notes)}</div>` : ''}
     <div class="feed-actions">
+      <button class="like-btn${liked ? ' liked' : ''}" id="like-btn-${wid}" onclick="toggleLike('${wid}', this)">
+        💪 <span id="like-count-${wid}">${likedBy.length}</span>
+      </button>
       <button class="feed-comment-btn" id="comment-toggle-${wid}" onclick="toggleComments('${wid}')">
         💬 <span id="comment-count-${wid}">···</span>
       </button>
@@ -735,43 +829,70 @@ async function loadCommentCounts(wids) {
   });
 }
 
-async function toggleComments(wid) {
+async function toggleLike(wid, btn) {
+  if (!currentUser) return;
+  const liked    = btn.classList.contains('liked');
+  const countEl  = document.getElementById(`like-count-${wid}`);
+  const delta    = liked ? -1 : 1;
+  // Optimistic update
+  btn.classList.toggle('liked', !liked);
+  btn.style.animation = 'none'; btn.offsetHeight;
+  btn.style.animation = 'likeHeartbeat .4s ease';
+  if (countEl) countEl.textContent = Math.max(0, (parseInt(countEl.textContent) || 0) + delta);
+  try {
+    await db.collection('workouts').doc(wid).update({
+      likedBy: liked
+        ? firebase.firestore.FieldValue.arrayRemove(currentUser.uid)
+        : firebase.firestore.FieldValue.arrayUnion(currentUser.uid),
+    });
+  } catch {
+    btn.classList.toggle('liked', liked);
+    if (countEl) countEl.textContent = Math.max(0, (parseInt(countEl.textContent) || 0) - delta);
+    toast('שגיאה', 'error');
+  }
+}
+
+function toggleComments(wid) {
   const section = document.getElementById(`comments-section-${wid}`);
   const btn     = document.getElementById(`comment-toggle-${wid}`);
   if (!section.classList.contains('hidden')) {
-    section.classList.add('hidden'); btn.classList.remove('active'); return;
+    section.classList.add('hidden'); btn.classList.remove('active');
+    if (commentListeners[wid]) { commentListeners[wid](); delete commentListeners[wid]; }
+    return;
   }
   section.classList.remove('hidden'); btn.classList.add('active');
-  await loadComments(wid);
+  subscribeComments(wid);
   initRipples();
 }
 
-async function loadComments(wid) {
+function subscribeComments(wid) {
+  if (commentListeners[wid]) return;
   const listEl = document.getElementById(`comments-list-${wid}`);
+  if (!listEl) return;
   listEl.innerHTML = '<div style="padding:8px 0;color:var(--text-3);font-size:12px;text-align:center">טוען...</div>';
-  try {
-    const snap = await db.collection('comments').where('workoutId', '==', wid).get();
-    const docs = snap.docs.sort((a, b) =>
-      (a.data().createdAt?.toMillis?.() || 0) - (b.data().createdAt?.toMillis?.() || 0));
-    const el = document.getElementById(`comment-count-${wid}`);
-    if (el) el.textContent = docs.length ? `${docs.length} תגובות` : 'הוסף תגובה';
-    if (!docs.length) {
-      listEl.innerHTML = '<div style="padding:4px 0;color:var(--text-3);font-size:13px">אין תגובות עדיין</div>';
-      return;
-    }
-    listEl.innerHTML = docs.map(doc => {
-      const c = doc.data();
-      return `<div class="comment-item">
-        ${avatarHtml(c.userName || '?', c.userPhotoUrl || '', 'comment-avatar')}
-        <div class="comment-body">
-          <div class="comment-author">${escHtml(c.userName || 'משתמש')}</div>
-          <div class="comment-text">${escHtml(c.text)}</div>
-        </div>
-      </div>`;
-    }).join('');
-  } catch (err) {
-    listEl.innerHTML = '<div style="color:var(--danger);font-size:12px">שגיאה</div>';
-  }
+  const unsub = db.collection('comments')
+    .where('workoutId', '==', wid)
+    .onSnapshot(snap => {
+      const docs = snap.docs.sort((a, b) =>
+        (a.data().createdAt?.toMillis?.() || 0) - (b.data().createdAt?.toMillis?.() || 0));
+      const countEl = document.getElementById(`comment-count-${wid}`);
+      if (countEl) countEl.textContent = docs.length ? `${docs.length} תגובות` : 'הוסף תגובה';
+      if (!docs.length) {
+        listEl.innerHTML = '<div style="padding:4px 0;color:var(--text-3);font-size:13px">אין תגובות עדיין</div>';
+        return;
+      }
+      listEl.innerHTML = docs.map(doc => {
+        const c = doc.data();
+        return `<div class="comment-item">
+          ${avatarHtml(c.userName || '?', c.userPhotoUrl || '', 'comment-avatar')}
+          <div class="comment-body">
+            <div class="comment-author">${escHtml(c.userName || 'משתמש')}</div>
+            <div class="comment-text">${escHtml(c.text)}</div>
+          </div>
+        </div>`;
+      }).join('');
+    }, err => console.error('Comments listener:', err));
+  commentListeners[wid] = unsub;
 }
 
 async function addComment(wid) {
@@ -787,7 +908,7 @@ async function addComment(wid) {
       text,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
-    loadComments(wid);
+    // onSnapshot in subscribeComments will update the list automatically
   } catch (err) {
     toast('שגיאה בשליחת התגובה', 'error'); input.value = text;
   }
@@ -1259,10 +1380,13 @@ auth.onAuthStateChanged(async user => {
 
     if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
   } else {
-    // Tear down listener
     if (workoutsUnsubscribe) { workoutsUnsubscribe(); workoutsUnsubscribe = null; }
+    if (feedObserver)        { feedObserver.disconnect(); feedObserver = null; }
+    Object.values(commentListeners).forEach(u => u());
+    Object.keys(commentListeners).forEach(k => delete commentListeners[k]);
     currentUser = null; userProfile = { goal: 3, friendIds: [], badges: [] };
     reminderDismissed = false; cachedUserDocs = []; goalWasHit = false; currentTab = 'home';
+    feedAllDocs = []; feedOffset = 0;
     if (progressChart) { progressChart.destroy(); progressChart = null; }
     document.getElementById('auth-screen').classList.remove('hidden');
     document.getElementById('app').classList.add('hidden');
