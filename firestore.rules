@@ -1,0 +1,63 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuth()     { return request.auth != null; }
+    function isOwner(uid) { return request.auth.uid == uid; }
+
+    // ── Users ──
+    match /users/{uid} {
+      allow read:   if isAuth();
+      allow create: if isOwner(uid);
+      // Owner can update anything; any auth user may only add themselves to friendIds
+      allow update: if isOwner(uid) || (
+        isAuth() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['friendIds']) &&
+        request.resource.data.friendIds.toSet()
+          .difference(resource.data.get('friendIds', []).toSet())
+          .hasOnly([request.auth.uid])
+      );
+      allow delete: if false;
+    }
+
+    // ── Workouts ──
+    match /workouts/{id} {
+      allow read:   if isAuth();
+      allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuth() && resource.data.userId == request.auth.uid;
+      allow delete: if isAuth() && resource.data.userId == request.auth.uid;
+    }
+
+    // ── Fines ──
+    match /fines/{id} {
+      allow read:   if isAuth();
+      allow create: if isAuth();
+      allow update: if isAuth() && (
+        resource.data.userId == request.auth.uid ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['paid','paidAt'])
+      );
+      allow delete: if false;
+    }
+
+    // ── Friend Requests ──
+    match /friendRequests/{id} {
+      allow read:   if isAuth() && (
+        resource.data.fromUid == request.auth.uid ||
+        resource.data.toUid   == request.auth.uid
+      );
+      allow create: if isAuth() && request.resource.data.fromUid == request.auth.uid;
+      allow update: if isAuth() && resource.data.toUid == request.auth.uid &&
+        request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['status', 'respondedAt']);
+      allow delete: if false;
+    }
+
+    // ── Comments ──
+    match /comments/{id} {
+      allow read:   if isAuth();
+      allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
+      allow delete: if isAuth() && resource.data.userId == request.auth.uid;
+      allow update: if false;
+    }
+  }
+}
