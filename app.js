@@ -1165,7 +1165,7 @@ function renderFeedItem(doc, idx = 0) {
   const tsStr    = w.createdAt ? timeAgo(w.createdAt) : fmtDate(w.date);
   return `<div class="feed-item" style="animation-delay:${idx * 50}ms">
     <div class="feed-header">
-      ${avatarHtml(w.userName || '?', w.userPhotoUrl || '', 'lb-avatar', '40')}
+      ${avatarHtml(w.userName || '?', w.userPhotoUrl || '', 'lb-avatar', '36')}
       <div class="feed-meta">
         <div class="feed-username">${escHtml(w.userName || 'משתמש')}${isMe ? ' <span class="feed-me-tag">אני</span>' : ''}</div>
         ${w.userUsername ? `<div class="feed-user-at">@${escHtml(w.userUsername)}</div>` : ''}
@@ -1176,7 +1176,7 @@ function renderFeedItem(doc, idx = 0) {
         <button class="feed-icon-btn" onclick="confirmDeleteWorkout('${wid}')">🗑️</button>
       </div>` : ''}
     </div>
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:4px">
       <span class="feed-pill">${w.typeEmoji || '💪'} ${escHtml(w.typeName || w.type)}</span>
       ${w.duration ? `<span class="feed-duration">⏱ ${fmtDuration(w.duration)}</span>` : ''}
     </div>
