@@ -619,7 +619,11 @@ async function compressImage(file, maxDimPx, maxKB) {
       }
       tryCompress();
     };
-    img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      console.warn('compressImage: img failed to load (HEIC?), using original file');
+      resolve(file);
+    };
     img.src = url;
   });
 }
@@ -731,23 +735,49 @@ function setHeaderAvatar() {
 
 async function uploadProfilePhoto(file) {
   if (!file) return;
-  const wrap = document.getElementById('settings-avatar-wrap');
-  if (wrap) wrap.style.opacity = '0.45';
+  console.log('Profile photo upload started:', file.name, file.size, file.type);
+  const wrap = document.getElementById('profile-avatar-wrap') || document.getElementById('settings-avatar-wrap');
+  if (wrap) { wrap.style.opacity = '0.45'; wrap.style.pointerEvents = 'none'; }
   try {
-    const compressed = await compressImage(file, 400, 200);
-    const photoUrl   = await uploadToCloudinary(compressed, `yala-sport/avatars/${currentUser.uid}`);
-    await currentUser.updateProfile({ photoURL: photoUrl });
-    await db.collection('users').doc(currentUser.uid).update({ photoUrl });
+    let toUpload;
+    try {
+      toUpload = await compressImage(file, 1024, 600);
+      console.log('Compressed:', toUpload.size, 'bytes');
+    } catch (e) {
+      console.error('Compress failed, using original:', e);
+      toUpload = file;
+    }
+
+    let photoUrl;
+    try {
+      photoUrl = await uploadToCloudinary(toUpload, `yala-sport/avatars/${currentUser.uid}`);
+      console.log('Cloudinary upload OK:', photoUrl);
+    } catch (e) {
+      console.error('Cloudinary upload failed:', e);
+      throw new Error('העלאת התמונה לשרת נכשלה');
+    }
+
+    try {
+      await currentUser.updateProfile({ photoURL: photoUrl });
+      await db.collection('users').doc(currentUser.uid).update({ photoUrl });
+      console.log('Firestore updated');
+    } catch (e) {
+      console.error('Firestore update failed:', e);
+      throw new Error('שמירת התמונה נכשלה');
+    }
+
     userProfile.photoUrl = photoUrl;
     setHeaderAvatar();
     renderSettings();
     toast('תמונת הפרופיל עודכנה! ✓', 'success');
   } catch (err) {
     console.error('Profile photo upload error:', err);
-    toast('שגיאה בהעלאת התמונה', 'error');
+    toast(err.message || 'שגיאה בהעלאת התמונה', 'error');
   } finally {
-    if (wrap) wrap.style.opacity = '1';
-    document.getElementById('photo-upload-input').value = '';
+    const _wrap2 = document.getElementById('profile-avatar-wrap') || document.getElementById('settings-avatar-wrap');
+    if (_wrap2) { _wrap2.style.opacity = '1'; _wrap2.style.pointerEvents = ''; }
+    const _inp = document.getElementById('photo-upload-input');
+    if (_inp) _inp.value = '';
   }
 }
 
@@ -3034,11 +3064,11 @@ function renderProfile() {
 
   el.innerHTML = `
     <div class="profile-header">
-      <div class="profile-avatar-wrap" onclick="document.getElementById('photo-upload-input').click()">
+      <div class="profile-avatar-wrap" id="profile-avatar-wrap" onclick="const _pi=document.getElementById('photo-upload-input');_pi.value='';_pi.click()">
         ${avatarInner}<div class="profile-avatar-edit">📷</div>
       </div>
       <input type="file" id="photo-upload-input" accept="image/*" style="display:none"
-             onchange="if(this.files[0]) uploadProfilePhoto(this.files[0])">
+             onchange="console.log('Profile pic change fired',this.files);if(this.files[0]) uploadProfilePhoto(this.files[0])">
       <div class="profile-header-info">
         <div class="profile-name">${escHtml(name)}</div>
         <div class="profile-username">${username
